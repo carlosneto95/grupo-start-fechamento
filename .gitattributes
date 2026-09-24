@@ -1,0 +1,16 @@
+# Fim de linha: LF no repositório e na cópia de trabalho, para tudo que é texto.
+# O repositório nasceu misturado (metade CRLF, metade LF), e o Python no
+# Windows grava CRLF: sem esta regra, cada edição aparecia no diff como a
+# troca do arquivo inteiro. O servidor (PythonAnywhere) é Linux.
+* text=auto eol=lf
+
+# O .bat roda no cmd do Windows, que exige CRLF.
+*.bat text eol=crlf
+
+# Script de shell com CRLF quebra no bash do servidor ("$'\r': command not found").
+*.sh text eol=lf
+
+# Binários nunca são convertidos.
+*.png binary
+*.ico binary
+*.db binary
