@@ -46,6 +46,18 @@ def _em_reais(linha: dict) -> dict:
     return linha
 
 
+# Colunas lidas pelas LISTAGENS (Despesas, Dashboard, funis). Fica de fora o
+# que só a sincronização e a conferência usam (historico, forma de pagamento
+# em texto, centro de custo extraído do histórico, número do documento).
+COLUNAS_LISTAGEM = ", ".join(
+    [
+        "empresa", "id", "fornecedor", "data_emissao", "data_vencimento", "data_liquidacao",
+        "valor_centavos", "saldo_centavos", "pago_centavos", "situacao", "categoria",
+        "categoria_primaria", "subcategoria", "forma_pagamento", "competencia",
+        "considerar_manual", "atualizado_em",
+    ]
+)
+
 COLUNAS_FILTRO_VALIDAS = {"empresa", "fornecedor", "categoria_primaria", "subcategoria", "situacao"}
 COLUNAS_DATA_FILTRAVEIS = {"data_emissao", "data_vencimento", "data_liquidacao"}
 SEM_DATA = "SEM_DATA"
@@ -278,6 +290,7 @@ def listar_contas(
     competencias: set[str] | None = None,
     consideracao: set[str] | None = None,
     valores_sel: set[str] | None = None,
+    ordenado: bool = True,
 ) -> list[dict]:
     """filtros: valores exatos (empresa, competencia, categoria_primaria, subcategoria).
     filtros_data: {"data_emissao": {"2026-08-05", ..., SEM_DATA}, ...} — conjunto exato de
@@ -312,7 +325,10 @@ def listar_contas(
     # Só o período que o sistema exibe — o resto continua no banco, mas fora da visão.
     condicoes.append(FILTRO_SQL_CONTAS)
 
-    sql = "SELECT * FROM contas_pagar WHERE " + " AND ".join(condicoes)
+    # Colunas explícitas em vez de SELECT *: o `historico` é texto livre longo,
+    # nenhuma listagem o usa, e trazê-lo nas 15 mil linhas era o maior custo
+    # de leitura do Dashboard. A lista é fixa no código (nada vem de fora).
+    sql = f"SELECT {COLUNAS_LISTAGEM} FROM contas_pagar WHERE " + " AND ".join(condicoes)
 
     conn = get_conn()
     try:
@@ -356,6 +372,10 @@ def listar_contas(
             if rotulo_consideracao(l["considerar_efetivo"]) in consideracao
         ]
 
+    # O funil de coluna só precisa do CONJUNTO de valores: ordenar 15 mil
+    # linhas para descartar a ordem era metade do tempo da lista.
+    if not ordenado:
+        return linhas
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO, "data_vencimento")
 
 

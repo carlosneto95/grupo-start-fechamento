@@ -121,7 +121,11 @@ def dashboard(args) -> dict:
 
     # As colunas do banco vão em `filtros`; a competência é tratada à parte
     # porque as notas guardam a delas noutra coluna (com o ajuste manual).
-    contas = listar_contas({k: v for k, v in filtros.items() if v}, competencias=competencias_sel)
+    # ordenado=False: o Dashboard só AGREGA as contas; ordenar 15 mil linhas
+    # por vencimento para depois somar era custo puro.
+    contas = listar_contas(
+        {k: v for k, v in filtros.items() if v}, competencias=competencias_sel, ordenado=False
+    )
     filtros["competencia"] = competencias_marcadas  # só para o template marcar os itens
     consideradas = [c for c in contas if c["considerar_efetivo"]]
 

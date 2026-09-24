@@ -338,7 +338,8 @@ def listar_notas(filtros: dict | None = None, competencias: set[str] | None = No
                  ordenar: str | None = None, direcao: str = "desc",
                  categorias: set[str] | None = None,
                  consideracao: set[str] | None = None,
-                 valores_sel: set[str] | None = None) -> list[dict]:
+                 valores_sel: set[str] | None = None,
+                 ordenado: bool = True) -> list[dict]:
     filtros = filtros or {}
     # Colunas cruas da tabela que o filtro de cabeçalho pode restringir. As
     # derivadas (competência e categoria efetivas) são tratadas mais abaixo.
@@ -410,6 +411,10 @@ def listar_notas(filtros: dict | None = None, competencias: set[str] | None = No
             if rotulo_consideracao(l["considerar_efetivo"]) in consideracao
         ]
 
+    # O funil de coluna só precisa do CONJUNTO de valores: ordenar 15 mil
+    # linhas para descartar a ordem era metade do tempo da lista.
+    if not ordenado:
+        return linhas
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO, "data_emissao")
 
 

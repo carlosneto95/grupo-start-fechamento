@@ -31,7 +31,7 @@ def _marcados(filtros_coluna: dict, coluna: str) -> set | None:
     return set(filtros_coluna.get(coluna) or []) or None
 
 
-def despesas(filtros_coluna: dict, ordenar=None, direcao="asc") -> list[dict]:
+def despesas(filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True) -> list[dict]:
     filtros = {c: filtros_coluna[c] for c in SQL_DESPESAS if filtros_coluna.get(c)}
     return listar_contas(
         filtros,
@@ -41,10 +41,11 @@ def despesas(filtros_coluna: dict, ordenar=None, direcao="asc") -> list[dict]:
         competencias=_marcados(filtros_coluna, "competencia"),
         consideracao=_marcados(filtros_coluna, "considerar_efetivo"),
         valores_sel=_marcados(filtros_coluna, "valor"),
+        ordenado=ordenado,
     )
 
 
-def receitas(filtros_coluna: dict, ordenar=None, direcao="desc") -> list[dict]:
+def receitas(filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
     filtros = {c: filtros_coluna[c] for c in SQL_RECEITAS if filtros_coluna.get(c)}
     # A emissão das notas também é árvore de datas, e listar_notas a espera
     # dentro do mesmo dicionário de filtros.
@@ -58,6 +59,7 @@ def receitas(filtros_coluna: dict, ordenar=None, direcao="desc") -> list[dict]:
         categorias=_marcados(filtros_coluna, "categoria_primaria_efetiva"),
         consideracao=_marcados(filtros_coluna, "considerar_efetivo"),
         valores_sel=_marcados(filtros_coluna, "valor"),
+        ordenado=ordenado,
     )
 
 
@@ -67,10 +69,10 @@ def _receitas_do_tipo(tipo: str):
     O tipo é fixado AQUI e não vem da URL de propósito: é a identidade da tela,
     não um filtro que o usuário possa desmarcar. Assim a cascata dos funis, que
     passa por esta mesma função, enxerga só o universo daquela tela."""
-    def listar(filtros_coluna: dict, ordenar=None, direcao="desc") -> list[dict]:
+    def listar(filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
         filtros = dict(filtros_coluna)
         filtros["tipo_nota"] = [tipo]
-        return receitas(filtros, ordenar=ordenar, direcao=direcao)
+        return receitas(filtros, ordenar=ordenar, direcao=direcao, ordenado=ordenado)
     return listar
 
 
@@ -88,4 +90,5 @@ LISTAGEM = {
 def linhas(tabela: str, filtros_coluna: dict) -> list[dict]:
     if tabela not in LISTAGEM:
         raise ValueError(f"tabela desconhecida: {tabela}")
-    return LISTAGEM[tabela](filtros_coluna)
+    # A lista do funil não depende da ordem das linhas: pula a ordenação.
+    return LISTAGEM[tabela](filtros_coluna, ordenado=False)

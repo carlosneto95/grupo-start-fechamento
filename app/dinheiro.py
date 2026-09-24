@@ -57,7 +57,9 @@ def para_reais(centavos) -> Decimal | None:
     """Centavos inteiros -> reais em Decimal com 2 casas. None continua None."""
     if centavos is None:
         return None
-    return (Decimal(int(centavos)) / 100).quantize(CENTAVO)
+    # scaleb(-2) só move a vírgula: 12345 -> 123.45, exato e com 2 casas,
+    # sem a divisão e o quantize (medido: metade do tempo em 15 mil linhas).
+    return Decimal(int(centavos)).scaleb(-2)
 
 
 def ratear(total: Decimal, pesos: list[Decimal]) -> list[Decimal]:

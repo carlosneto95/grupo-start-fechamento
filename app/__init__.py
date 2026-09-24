@@ -33,6 +33,10 @@ def criar_app(sobrescrever: dict | None = None) -> Flask:
     # Autoescape do Jinja fica LIGADO (padrão para .html). Reforço explícito:
     # nenhum dado vindo do Tiny pode virar HTML.
     app.jinja_env.autoescape = True
+    # Tira do HTML a linha e a indentação que sobram das tags {% %}: na tela
+    # de Despesas (15 mil linhas) era boa parte dos 13 MB enviados ao navegador.
+    app.jinja_env.trim_blocks = True
+    app.jinja_env.lstrip_blocks = True
 
     # O banco é um só por processo. Scripts e a thread de sincronização usam
     # app.db sem contexto de requisição, então o caminho fica no módulo.
