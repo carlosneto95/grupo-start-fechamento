@@ -53,6 +53,15 @@ def _abrir(caminho: Path) -> sqlite3.Connection:
     return conn
 
 
+def abrir_somente_leitura(caminho: str | Path) -> sqlite3.Connection:
+    """Abre o banco SEM poder escrever (relatórios, golden master).
+
+    Usa Path.as_uri(), que codifica espaço e acento: o projeto mora em
+    "Grupo Start - Fechamento", e um "file:C:/.../Grupo Start - Fechamento/..."
+    montado à mão falha com "unable to open database file"."""
+    return sqlite3.connect(Path(caminho).resolve().as_uri() + "?mode=ro", uri=True)
+
+
 def get_conn() -> sqlite3.Connection:
     """Conexão com o banco configurado.
 
@@ -169,6 +178,10 @@ def migrar(caminho: str | Path | None = None, pasta_backups: str | Path | None =
             finally:
                 conn.execute("PRAGMA foreign_keys = ON")
             log.info("Migração %s aplicada", versao)
+        # Recriar tabela (migrações 2 e 3) deixa as páginas antigas livres no
+        # arquivo: o banco dobrava de tamanho. VACUUM devolve o espaço; roda
+        # fora de transação e só quando alguma migração foi aplicada.
+        conn.execute("VACUUM")
         return pendentes[-1][0]
     finally:
         conn.close()

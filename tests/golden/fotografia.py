@@ -186,10 +186,11 @@ def _banco_temporario(origem: Path):
     `PRAGMA journal_mode=WAL` e `CREATE TABLE IF NOT EXISTS` ao conectar, e a
     Fase 1 vai aplicar migrações — tudo isso acontece na cópia."""
     import app.db as db
+    from app.db import abrir_somente_leitura
 
     pasta = Path(tempfile.mkdtemp(prefix="gsf_golden_"))
     destino = pasta / "golden.db"
-    origem_conn = sqlite3.connect(f"file:{origem.as_posix()}?mode=ro", uri=True)
+    origem_conn = abrir_somente_leitura(origem)
     destino_conn = sqlite3.connect(destino)
     try:
         origem_conn.backup(destino_conn)

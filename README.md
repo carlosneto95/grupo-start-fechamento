@@ -1,39 +1,80 @@
-# Grupo Start - Fechamento
+# Grupo Start — Fechamento
 
-Automação da extração de relatórios do Tiny ERP (Olist), consolidando os dados
-de 3 empresas diferentes (mesmo sistema, contas separadas) em uma única
-planilha, substituindo o processo manual em Excel.
+Espelho do Tiny ERP (Olist) para o fechamento gerencial de três empresas do
+grupo: despesas (contas a pagar) e receitas (notas fiscais) sincronizadas pela
+API oficial v2, com resultado por centro de custo, imposto e rateio do
+administrativo.
 
-## Status atual
+O sistema **não corrige dado do ERP**: o que vem do Tiny é gravado como veio, e a
+sujeira encontrada é reportada (`scripts/relatorio_qualidade.py`) para ser
+corrigida na origem. Ajustes manuais ficam em colunas próprias, ao lado do
+original, e cada um é registrado na trilha de auditoria.
 
-Estrutura inicial do projeto. Ainda validando, para a EMPRESA 1, se dá para
-usar a API oficial do Tiny ou se será necessário o fallback via requisição
-HTTP direta (sessão logada).
+## Stack
+
+Python 3.11+ · Flask · Jinja2 · SQLite (`sqlite3`) · JavaScript puro, sem etapa
+de build. Destino: PythonAnywhere.
 
 ## Estrutura
 
 ```
-app/
-  config/companies.py   -> carrega credenciais das 3 empresas via .env
-  tiny_client/
-    api_client.py        -> cliente da API oficial do Tiny
-    http_client.py        -> fallback via sessão HTTP (login simulado)
-  reports/consolidar.py  -> junta as planilhas das 3 empresas em uma só
-scripts/testar_conexao.py -> testa a conexão com a EMPRESA 1
-app.py                    -> dashboard Flask (base inicial)
-templates/, static/       -> front-end HTML
+app.py                       ponto de entrada local (python app.py -> :5000)
+app/__init__.py              criar_app(): config, banco, log, rotas, erros
+app/configuracao.py          variáveis GSF_* lidas só do .env do projeto
+app/web/                     rotas finas, um blueprint por área
+app/paineis.py               o que cada tela mostra (regra fora das rotas)
+app/db.py                    conexão, migrações versionadas, backup
+app/migracoes/               000N_nome.sql — nunca editar migração aplicada
+app/dinheiro.py              centavos no banco, Decimal no cálculo, rateio exato
+app/centros_de_custo.py      resultado por categoria: imposto, Adm I, Adm II
+app/auditoria.py             trilha append-only de toda escrita manual
+app/sincronizar_tudo.py      job único de sincronização (tela, CLI, agendada)
+app/registro.py              log com rotação e máscara de token/CPF/CNPJ
+scripts/                     sincronizar, tarefa_diaria, relatorio_qualidade...
+tests/                       pytest com dados sintéticos + golden master local
 ```
 
-## Como rodar localmente
+## Como rodar
 
 ```
-pip install -r requirements.txt
-cp .env.example .env   # preencher com os dados da EMPRESA1
-python scripts/testar_conexao.py
+python -m venv .venv
+.venv\Scripts\pip install ".[dev]"
+copy .env.example .env          (preencher GSF_SECRET_KEY e os tokens do Tiny)
+.venv\Scripts\python scripts\diagnosticar_env.py
+.venv\Scripts\python app.py
 ```
 
-## Deploy
+Na primeira subida, o sistema aplica as migrações pendentes com backup
+verificado em `backups/`.
 
-Alvo final: PythonAnywhere (plano pago). A extração usa API oficial ou
-requests HTTP puro — **sem** automação de navegador (Selenium/Playwright),
-que não é suportado de forma confiável no PythonAnywhere.
+## Sincronização
+
+```
+.venv\Scripts\python scripts\sincronizar.py TODAS 2026          despesas e notas
+.venv\Scripts\python scripts\sincronizar.py MSV 2026 --so notas
+.venv\Scripts\python scripts\tarefa_diaria.py                   backup + sync + relatório
+```
+
+Cada execução fica registrada na tabela `sincronizacoes`.
+
+## Testes
+
+```
+.venv\Scripts\python -m pytest            unitários (dados sintéticos) + golden
+.venv\Scripts\ruff check .
+.venv\Scripts\pre-commit install          uma vez por clone
+```
+
+O **golden master** (`tests/golden/`) congela os números de todas as telas
+sobre uma cópia do banco e é o juiz de qualquer refatoração. Os valores
+esperados são dados reais e ficam fora do git (`tests/golden/esperado/`):
+no CI ele aparece como *pulado*, e roda localmente antes de cada merge.
+Mudança de número só entra com `python -m tests.golden.comparar --aceitar
+"motivo"`, que guarda a fotografia anterior e registra o motivo.
+
+## Segurança do repositório
+
+Repositório público. `.gitignore` e hook `pre-commit` (gitleaks, bloqueio de
+`.db`, `.xls*`, `.env`, `.pkl` e de arquivo acima de 1 MB) impedem que banco,
+planilha ou segredo entrem no histórico. Nenhum arquivo versionado pode conter
+valor real, nome de cliente ou fornecedor, nem descrição de infraestrutura.

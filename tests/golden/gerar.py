@@ -42,6 +42,7 @@ def main() -> int:
     sys.path.insert(0, str(RAIZ))
     # Importa o conftest ANTES de tudo: ele desvia o DB_PATH do banco real.
     import tests.conftest  # noqa: F401
+    from app.db import abrir_somente_leitura
     from tests.golden import fotografia
 
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -62,7 +63,7 @@ def main() -> int:
     base = ESPERADO / "base.db"
 
     # Cópia pela API de backup: consistente mesmo com o banco em WAL e aberto.
-    fonte = sqlite3.connect(f"file:{origem.as_posix()}?mode=ro", uri=True)
+    fonte = abrir_somente_leitura(origem)
     alvo = sqlite3.connect(base)
     try:
         fonte.backup(alvo)

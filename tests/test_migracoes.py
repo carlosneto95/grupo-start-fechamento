@@ -200,3 +200,19 @@ def test_regras_de_exclusao_auditam_so_quando_mudam(cliente, banco_exemplo):
     (linha,) = _auditoria(banco_exemplo)
     assert json.loads(linha["valor_anterior"]) == ["APORTE", "IMPOSTO"]
     assert json.loads(linha["valor_novo"]) == ["APORTE", "IMPOSTO", "LIKE"]
+
+
+def test_somente_leitura_aceita_caminho_com_espaco_e_acento(tmp_path):
+    """O projeto mora em "Grupo Start - Fechamento": um URI file: montado à mão
+    quebrava com espaço (relatório e golden sobre o caminho absoluto)."""
+    pasta = tmp_path / "Grupo Start - Fechamento" / "dados ç"
+    pasta.mkdir(parents=True)
+    caminho = pasta / "app.db"
+    db.migrar(caminho, tmp_path / "bkp")
+    conn = db.abrir_somente_leitura(caminho)
+    assert (
+        conn.execute("SELECT max(versao) FROM schema_versao").fetchone()[0] == db.MIGRACOES[-1][0]
+    )
+    with pytest.raises(sqlite3.OperationalError):  # e é só leitura mesmo
+        conn.execute("DELETE FROM regras_exclusao")
+    conn.close()
