@@ -9,7 +9,7 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 1 — Estrutura técnica · 24/09/2026 · aguardando validação
+## Fase 1 — Estrutura técnica · 24/09/2026 · validada pelo Neto e mesclada (PR #6)
 
 ### O que foi feito
 - **Estrutura**: fábrica `criar_app()` (padrão do Impostos); rotas finas em
@@ -68,13 +68,14 @@ Cada etapa está em `tests/golden/esperado/diff_*.md` (fora do git) e no histór
 ### Desempenho (banco congelado, mediana, máquina local)
 | Rota | Antes | Depois | Meta 300 ms |
 |---|---:|---:|---|
-| /despesas (15,6 mil linhas) | 1.743 ms | ~480 ms | não atingida |
+| /despesas (15,6 mil linhas) | 1.743 ms | ~190 ms | atingida (2 mil linhas na tela) |
 | /dashboard | 643 ms | ~280 ms | atingida |
 | /api/valores-filtro (fornecedor) | 365 ms | ~115 ms | atingida |
 | /api/valores-filtro (competência) | 357 ms | ~115 ms | atingida |
 
-Em /despesas, montar os dados custa ~170 ms; o resto é renderizar 15,6 mil linhas de
-HTML. Abaixo de 300 ms só mostrando menos linhas por vez (decisão pendente).
+Em /despesas, montar os dados custa ~170 ms; renderizar 15,6 mil linhas levava ~300 ms.
+Decisão do Neto: a tela desenha até 2 mil linhas, com "Mostrar todas"; total, contagem
+e funis continuam sobre todas as linhas do recorte.
 
 ### Decisões
 1. Pacote continua `app/` (renomear para `sistema/` mudaria todos os imports sem ganho).
@@ -87,19 +88,20 @@ HTML. Abaixo de 300 ms só mostrando menos linhas por vez (decisão pendente).
    item 4 da fase (Decimal + resíduo), está explicada linha a linha e fica numa branch
    sem merge até a validação.
 
-### Proposta de remoção (não removido — aguardando confirmação)
+### Código removido (com aval do Neto)
 `app/tiny_client/http_client.py` (login simulado, nunca usado); `app/reports/consolidar.py`;
 `combinar_registros`/`salvar` em `app/reports/contas_pagar.py` (únicos usos de pandas no
 app); `arvore_datas`, `arvore_competencias`, `arvore_competencias_notas`,
 `categorias_primarias_das_notas`, `resumir_por_categoria`, `resumir_receitas` e o
 `sincronizacao.sincronizar` público (substituído pelo job único) — nenhuma referência.
 
+### Validação do Neto (24/09/2026)
+"De acordo com tudo": as cinco mudanças de número aprovadas (registrado no `meta.json`
+do golden), Despesas limitada a 2 mil linhas na tela, código morto removido.
+Também: fim de linha normalizado para LF (`.gitattributes`); o repositório nasceu
+misturado e cada edição aparecia como troca do arquivo inteiro.
+
 ### Pendências
-- **Neto:** aprovar ou recusar as mudanças de número acima (o `meta.json` as marca como
-  não aprovadas).
-- **Neto:** /despesas acima de 300 ms — aceitar, ou mostrar as primeiras N linhas com
-  "mostrar todas" (os totais continuam sobre tudo).
-- **Neto:** confirmar a remoção do código morto.
 - Sincronizar as 3 empresas (paradas desde 25/08/2026) — agora pela tela, com "Todas".
 - 4 PRs do Dependabot abertos (actions e pandas 3.0.6): o do pandas precisa do golden
   local antes do merge.

@@ -229,7 +229,7 @@ def listar_contas(
 ) -> list[dict]:
     """filtros: valores exatos (empresa, competencia, categoria_primaria, subcategoria).
     filtros_data: {"data_emissao": {"05/08/2026", "08/2026", "(vazio)", ...}, ...} — conjunto exato de
-    datas (formato ISO) a manter, tipo o filtro de data do Excel (Ano > Mês > Dia com
+    seleção da árvore Ano > Mês > Dia, colapsada (ver visao.casa_data), como o filtro do Excel (com
     checkbox). Uma coluna ausente do dict = sem filtro nessa coluna (mostra tudo).
     ordenar/direcao: coluna de ordenação e "asc"/"desc" (padrão: vencimento crescente)."""
     filtros = filtros or {}
