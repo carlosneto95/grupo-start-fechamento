@@ -11,11 +11,14 @@ REM %~dp0 = pasta onde este .bat esta. Sem o cd, um atalho com "iniciar em"
 REM apontando para outro lugar faria o python nao achar app.py nem data\app.db.
 cd /d "%~dp0"
 
-REM Python instalado? Sem esta checagem o erro seria um "nao reconhecido como
-REM comando" que some junto com a janela antes de dar tempo de ler.
-where python >nul 2>&1
-if errorlevel 1 (
-    echo [ERRO] Python nao encontrado no PATH.
+REM Usa o Python do ambiente do projeto (.venv), que tem as versoes fixadas no
+REM pyproject.toml. O Python do sistema nao tem, por exemplo, o Flask-WTF (CSRF,
+REM Fase 2) e o servidor morreria no arranque com erro de import.
+set "PY=%~dp0.venv\Scripts\python.exe"
+if not exist "%PY%" (
+    echo [ERRO] Ambiente .venv nao encontrado. Na pasta do projeto, rode:
+    echo     python -m venv .venv
+    echo     .venv\Scripts\pip install ".[dev]"
     pause
     exit /b 1
 )
@@ -38,7 +41,7 @@ echo.
 echo   Sistema em http://127.0.0.1:5000
 echo   Ctrl+C ou fechar esta janela para parar.
 echo.
-python app.py
+"%PY%" app.py
 
 REM Se o python morreu no arranque (dependencia faltando, erro de import), a
 REM janela fecharia sozinha e levaria o traceback junto. pause segura a tela.
