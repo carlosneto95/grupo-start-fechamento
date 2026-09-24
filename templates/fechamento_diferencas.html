@@ -1,0 +1,114 @@
+{% extends "_base.html" %}
+{% import "_filtro_coluna.html" as col %}
+{% block titulo %}Fechamento {{ competencia }} — Grupo Start{% endblock %}
+{% block cabecalho %}Fechamento {{ competencia }}{% endblock %}
+{% block corpo %}
+{% set f = dados.fechamento %}
+<p class="legenda">
+    Fechado em {{ f.fechado_em[:16]|replace("T", " ") }} por {{ f.fechado_por }}.
+    O resultado "no fechamento" é recalculado da foto, dentro das empresas que você enxerga.
+</p>
+{% if erro %}<p class="aviso">{{ erro }}</p>{% endif %}
+
+{# Resultado fechado × atual, com a diferença: o número apresentado no fechamento
+   continua visível mesmo depois de o Tiny mudar. #}
+<div class="tabela-caixa tabela-comparacao">
+<table>
+    <thead>
+        <tr><th></th><th class="num">No fechamento</th><th class="num">Agora</th><th class="num">Diferença</th></tr>
+    </thead>
+    <tbody>
+        {% for campo, rotulo in [("receita", "Receita"), ("despesa", "Despesa"), ("imposto", "Impostos"),
+                                  ("adm1", "Adm I"), ("adm2", "Adm II"), ("custo_total", "Custo total"),
+                                  ("resultado", "Resultado")] %}
+        {% set antes, agora = dados.no_fechamento[campo], dados.agora[campo] %}
+        <tr class="{{ 'linha-total' if campo == 'resultado' }}">
+            <td>{{ rotulo }}</td>
+            <td class="num">{{ antes|moeda }}</td>
+            <td class="num">{{ agora|moeda }}</td>
+            {# Cor pelo EFEITO no resultado, não pelo sinal: custo que sobe é ruim. #}
+            {% set custo = campo in ("despesa", "imposto", "adm1", "adm2", "custo_total") %}
+            {% set melhora = (agora - antes < 0) if custo else (agora - antes > 0) %}
+            <td class="num {{ '' if agora == antes else ('valor-positivo' if melhora else 'valor-negativo') }}">
+                {{ (agora - antes)|moeda if agora != antes else "—" }}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<h2>Linhas que mudaram depois do fechamento ({{ dados.diferencas|length }})</h2>
+{% if dados.diferencas %}
+<form method="get" id="form-tabela">
+    <input type="hidden" name="competencia" value="{{ competencia }}">
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+    <div class="tabela-caixa">
+    <table>
+        <thead>
+            <tr>
+                {{ col.th("fechamento.diferencas", "diferencas", "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("fechamento.diferencas", "diferencas", "tipo", "Tipo", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("fechamento.diferencas", "diferencas", "descricao", "Fornecedor / cliente", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("fechamento.diferencas", "diferencas", "categoria", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("fechamento.diferencas", "diferencas", "mudanca", "Mudança", ordenar, direcao, args_atuais, filtros_coluna) }}
+                <th class="num">Antes</th>
+                <th class="num">Agora</th>
+                <th class="num"><a href="{{ url_for('fechamento.diferencas', **dict(args_atuais, ordenar='efeito', direcao='asc' if ordenar == 'efeito' and direcao == 'desc' else 'desc')) }}">Efeito</a></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in linhas %}
+            <tr>
+                <td>{{ d.empresa }}</td>
+                <td>{{ d.tipo }}</td>
+                <td class="texto-longo" title="{{ d.descricao or '' }}">{{ d.descricao or "" }}</td>
+                <td class="texto-medio" title="{{ d.categoria or '' }}">{{ d.categoria or "" }}</td>
+                <td>{{ d.mudanca }}</td>
+                <td class="num">{% if d.antes %}{{ d.antes.valor|moeda }}{% if not d.antes.considerar %} <small>(desc.)</small>{% endif %}{% else %}—{% endif %}</td>
+                <td class="num">{% if d.depois %}{{ d.depois.valor|moeda }}{% if not d.depois.considerar %} <small>(desc.)</small>{% endif %}{% else %}—{% endif %}</td>
+                {# Receita que sobe melhora o resultado; despesa que sobe piora. #}
+                {% set melhora = (d.efeito > 0) if d.tipo == "receita" else (d.efeito < 0) %}
+                <td class="num {{ '' if not d.efeito else ('valor-positivo' if melhora else 'valor-negativo') }}">{{ d.efeito|moeda_sinal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</form>
+{% else %}
+<p><span class="etiqueta ok">nenhuma</span> O dado atual é igual ao fechado.</p>
+{% endif %}
+
+{% if eh_admin %}
+<div class="bloco-extracao">
+    <h3>Reabrir {{ competencia }}</h3>
+    <p class="legenda">
+        Libera os ajustes manuais do mês. A foto fica guardada e a reabertura vai para a
+        auditoria com o motivo.
+    </p>
+    <form method="post" action="{{ url_for('fechamento.reabrir') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="competencia" value="{{ competencia }}">
+        <label>Motivo
+            <input type="text" name="motivo" required minlength="5" maxlength="300">
+        </label>
+        <button type="submit">Reabrir</button>
+    </form>
+</div>
+{% endif %}
+
+{% if historico|length > 1 %}
+<h2>Histórico</h2>
+<ul class="legenda">
+    {% for h in historico %}
+    <li>fechado em {{ h.fechado_em[:16]|replace("T", " ") }} por {{ h.fechado_por }}{% if h.reaberto_em %}
+        — reaberto em {{ h.reaberto_em[:16]|replace("T", " ") }} por {{ h.reaberto_por }}: {{ h.motivo_reabertura }}{% endif %}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/filtro-coluna.js') }}"></script>
+{% endblock %}

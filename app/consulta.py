@@ -123,7 +123,37 @@ def usuarios_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="asc",
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_USUARIOS, "login")
 
 
+TIPOS_ORDENACAO_DIFERENCAS = {
+    "empresa": "texto",
+    "tipo": "texto",
+    "mudanca": "texto",
+    "descricao": "texto",
+    "categoria": "texto",
+    "efeito": "numero",
+}
+
+
+def diferencas_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True):
+    """Linhas que mudaram depois do fechamento da competência pedida (o
+    parâmetro "competencia" da URL). Filtro e ordem em Python: são poucas."""
+    from app import fechamento
+    from app.ordenacao import ordenar_linhas
+    from app.visao import SEM_VALOR
+
+    competencia = (filtros_coluna.get("competencia") or [""])[0]
+    dados = fechamento.diferencas(escopo, competencia)
+    linhas = dados["diferencas"] if dados else []
+    for coluna, marcados in filtros_coluna.items():
+        if coluna in TIPOS_ORDENACAO_DIFERENCAS and marcados:
+            aceitos = set(marcados)
+            linhas = [d for d in linhas if (str(d.get(coluna) or "").strip() or SEM_VALOR) in aceitos]
+    if not ordenado:
+        return linhas
+    return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_DIFERENCAS, "efeito")
+
+
 LISTAGEM = {
+    "diferencas": diferencas_listagem,
     "usuarios": usuarios_listagem,
     "despesas": despesas,
     "receitas": receitas,

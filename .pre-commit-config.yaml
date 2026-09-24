@@ -18,7 +18,7 @@ repos:
     hooks:
       - id: ruff
       - id: ruff-format
-        files: ^(tests/|app/web/|app/(__init__|configuracao|registro|paineis|db|auditoria|dinheiro|migracao_centavos|sincronizar_tudo|extracao_job|escopo|seguranca|usuarios|validacao|pendencias)\.py$|app/config/companies\.py$|app\.py$|scripts/(relatorio_qualidade|medir_desempenho|sincronizar|sincronizar_receitas|tarefa_diaria|diagnosticar_env|criar_usuario|capturar_telas)\.py$)
+        files: ^(tests/|app/web/|app/(__init__|configuracao|registro|paineis|db|auditoria|dinheiro|migracao_centavos|sincronizar_tudo|extracao_job|escopo|seguranca|usuarios|validacao|pendencias|fechamento|trava_fechamento)\.py$|app/config/companies\.py$|app\.py$|scripts/(relatorio_qualidade|medir_desempenho|sincronizar|sincronizar_receitas|tarefa_diaria|diagnosticar_env|criar_usuario|capturar_telas)\.py$)
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

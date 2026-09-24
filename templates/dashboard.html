@@ -18,6 +18,18 @@
             — padrão (até o último mês com receita). Marque competências no filtro para mudar.
         </p>
         {% endif %}
+        {# Mês FECHADO cujo dado atual difere da foto (Fase 4.2): o número da tela
+           é o atual, e o alerta diz quanto ele se afastou do que foi fechado. #}
+        {% for a in alertas_fechamento if a.diferencas %}
+        <p class="aviso-fechamento">
+            <strong>{{ a.competencia }} fechado</strong> difere do atual:
+            {% if a.efeito_receita %}receita <span class="num">{{ a.efeito_receita|moeda_sinal }}</span>{% endif %}
+            {% if a.efeito_receita and a.efeito_despesa %}, {% endif %}
+            {% if a.efeito_despesa %}despesa <span class="num">{{ a.efeito_despesa|moeda_sinal }}</span>{% endif %}
+            ({{ a.diferencas }} linha(s)) —
+            <a href="{{ url_for('fechamento.diferencas', competencia=a.competencia) }}">ver diferenças</a>
+        </p>
+        {% endfor %}
         <div class="cartoes cartoes-compactos">
             <div class="cartao positivo">
                 <span class="cartao-rotulo">Receita</span>

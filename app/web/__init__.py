@@ -6,7 +6,18 @@ fechamento mora aqui — está em app/paineis.py e nos módulos de domínio, ond
 os testes alcançam sem subir servidor.
 """
 
-from app.web import admin, analise, api, auth, dashboard, despesas, extracao, pendencias, receitas
+from app.web import (
+    admin,
+    analise,
+    api,
+    auth,
+    dashboard,
+    despesas,
+    extracao,
+    fechamento,
+    pendencias,
+    receitas,
+)
 
 BLUEPRINTS = (
     auth.bp,
@@ -15,6 +26,7 @@ BLUEPRINTS = (
     receitas.bp,
     analise.bp,
     pendencias.bp,
+    fechamento.bp,
     extracao.bp,
     admin.bp,
     api.bp,

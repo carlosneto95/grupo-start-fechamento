@@ -5,6 +5,7 @@ from flask import Blueprint, g, jsonify, redirect, render_template, request, url
 from app import paineis, validacao
 from app.repositorio_contas_pagar import definir_manual
 from app.seguranca import escrita_necessaria
+from app.trava_fechamento import CompetenciaFechada
 
 bp = Blueprint("despesas", __name__)
 
@@ -33,6 +34,10 @@ def marcar():
         return jsonify({"ok": False, "erro": str(e)}), 400
     # False = não existe OU fora do escopo: 404 nos dois casos (não confirma
     # a existência de conta de outra empresa).
-    if not definir_manual(g.escopo, empresa, id_conta, considerar):
+    try:
+        existe = definir_manual(g.escopo, empresa, id_conta, considerar)
+    except CompetenciaFechada as e:
+        return jsonify({"ok": False, "erro": str(e)}), 409
+    if not existe:
         return jsonify({"ok": False, "erro": "conta não encontrada"}), 404
     return jsonify({"ok": True})

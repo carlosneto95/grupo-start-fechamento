@@ -279,7 +279,9 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
         for tabela, colunas in COLUNAS.items():
             # Usuários (Fase 2) não são dado do fechamento: o golden fotografa
             # números, e esta tabela só teria o usuário sintético do teste.
-            if tabela == "usuarios":
+            # Diferenças pós-fechamento (Fase 4.2) dependem de um fechamento
+            # existir: não são número do fechamento, e têm testes próprios.
+            if tabela in ("usuarios", "diferencas"):
                 continue
             for coluna in colunas:
                 for empresa in (None, "MSV"):

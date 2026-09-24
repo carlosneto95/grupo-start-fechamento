@@ -67,6 +67,17 @@ COLUNAS["receitas_vendas"] = {
 }
 COLUNAS["receitas_servicos"] = dict(COLUNAS["receitas_vendas"])
 
+# Diferenças pós-fechamento (Fase 4.2). "competencia" identifica o fechamento
+# (vai escondida na URL da tela); as demais são os funis da tabela.
+COLUNAS["diferencas"] = {
+    "competencia": None,
+    "empresa": None,
+    "tipo": None,
+    "mudanca": None,
+    "descricao": None,
+    "categoria": None,
+}
+
 # Tela de Admin -> Usuários (Fase 2). Só Admin chega à lista: o painel e a API
 # recusam a tabela para outro perfil.
 COLUNAS["usuarios"] = {

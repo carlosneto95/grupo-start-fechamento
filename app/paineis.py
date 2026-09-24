@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from app import consulta
+from app import consulta, fechamento
 from app.analise_receitas import grades
 from app.centros_de_custo import separar as separar_centros_de_custo
 from app.filtros_coluna import COLUNAS as COLUNAS_FILTRAVEIS
@@ -27,7 +27,7 @@ from app.repositorio_contas_pagar import (
     COLUNAS_ORDENAVEIS,
     competencias_disponiveis,
     listar_contas,
-    listar_valores_distintos,
+    opcoes_de_filtro,
 )
 from app.resumos import TIPOS_ORDENACAO_RESULTADO, arvore_de_gastos
 from app.visao import ANO_MINIMO
@@ -212,6 +212,19 @@ def dashboard(escopo, args) -> dict:
         )
 
     blocos = separar_centros_de_custo(faturadas, consideradas)
+
+    # Meses FECHADOS do recorte cujo dado atual difere da foto (Fase 4.2:
+    # número vivo + alerta). Sem filtro de categoria, as linhas que o
+    # Dashboard já leu servem; com filtro, o alerta relê as do mês inteiro —
+    # a diferença é do mês, não da categoria marcada.
+    sem_filtro_de_categoria = not (filtros["categoria_primaria"] or filtros["subcategoria"])
+    alertas_fechamento = fechamento.alertas(
+        escopo,
+        competencias_sel,
+        filtros["empresa"] or None,
+        contas if sem_filtro_de_categoria else None,
+        notas if sem_filtro_de_categoria else None,
+    )
     blocos["vendas"]["linhas"] = ordenada(blocos["vendas"]["linhas"])
     blocos["servicos"]["linhas"] = ordenada(blocos["servicos"]["linhas"])
 
@@ -226,14 +239,14 @@ def dashboard(escopo, args) -> dict:
         "resultado": total_receita - total_despesa,
         "margem": ((total_receita - total_despesa) / total_receita * 100) if total_receita else 0,
         "periodo_padrao": periodo_padrao,
+        "alertas_fechamento": alertas_fechamento,
         "quantidade_notas": len(faturadas),
         "quantidade_contas": len(consideradas),
         "filtros": filtros,
         "opcoes": {
             "competencia": competencias_disponiveis(escopo),
-            "empresa": listar_valores_distintos(escopo, "empresa"),
-            "categoria_primaria": listar_valores_distintos(escopo, "categoria_primaria"),
-            "subcategoria": listar_valores_distintos(escopo, "subcategoria"),
+            # Uma varredura para as três listas (antes eram três).
+            **opcoes_de_filtro(escopo),
         },
         "args_atuais": args.to_dict(flat=False),
     }
@@ -338,6 +351,27 @@ def usuarios(escopo, args) -> dict:
     return {
         "usuarios": consulta.usuarios_listagem(escopo, filtros_coluna, ordenar, direcao),
         "filtros_coluna": filtros_coluna,
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "args_atuais": args.to_dict(flat=False),
+    }
+
+
+# --------------------------------------------------------------------------
+# Fechamento -> tabela de diferenças
+# --------------------------------------------------------------------------
+
+
+def diferencas_tabela(escopo, args) -> dict:
+    """Tabela de diferenças pós-fechamento, com os funis de cabeçalho."""
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS["diferencas"])
+    ordenar = args.get("ordenar") or "efeito"
+    if ordenar not in consulta.TIPOS_ORDENACAO_DIFERENCAS:
+        ordenar = "efeito"
+    direcao = "asc" if args.get("direcao") == "asc" else "desc"
+    return {
+        "linhas": consulta.diferencas_listagem(escopo, filtros_coluna, ordenar, direcao),
+        "filtros_coluna": {c: v for c, v in filtros_coluna.items() if c != "competencia"},
         "ordenar": ordenar,
         "direcao": direcao,
         "args_atuais": args.to_dict(flat=False),
