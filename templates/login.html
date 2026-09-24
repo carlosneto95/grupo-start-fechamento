@@ -2,6 +2,7 @@
 {% block titulo %}Entrar — Grupo Start{% endblock %}
 {% block corpo %}
 <div class="caixa-login cartao">
+    <img src="{{ url_for('static', filename='img/grupo-start.png') }}" alt="Grupo Start" class="logo-login">
     <h2>Entrar</h2>
     {% if expirou %}
     <p class="aviso-linha">Sua sessão expirou após 60 minutos parada. Entre de novo.</p>

@@ -9,6 +9,54 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Fase 3 — Identidade visual · 24/09/2026 · aguardando validação
+
+### O que foi feito
+- **Família visual do Controle de Impostos**: paleta (fundo `#F4F1EA`, superfície
+  `#FFFDF8`, barra `#1C1B19`, destaque `#0F5C55`, borda `#DDD7CA`, verde `#2E7D4F`,
+  amarelo `#B7791F`, vermelho `#B42318`); receita em verde, despesa em vermelho, o índigo
+  saiu. Os nomes dos tokens do CSS ficaram; mudaram os valores (a troca vale no sistema
+  inteiro). As 12 cores fixas fora dos tokens foram migradas.
+- **Fontes**: Fraunces nos títulos, IBM Plex Sans no texto, IBM Plex Mono com
+  `tabular-nums` em todo número (valor, total, percentual, data, competência).
+- **Barra superior escura** com o logo oficial do Grupo Start (o mesmo arquivo do
+  Impostos), menu com ícone e texto (`templates/_icones.html`, SVG no HTML, sem CDN),
+  usuário com a inicial e Sair à direita. Favicon do Impostos. Tela de login com o logo.
+- **Selos, cartões, botões e links** no padrão do Impostos.
+- **Densidade mantida** (conflito com o respiro do Impostos): a escala compacta das
+  tabelas ficou; o total de Despesas e de Receitas subiu para a linha do título;
+  limpar filtros e o aviso do limite dividem uma faixa só; texto longo numa linha com
+  reticências (o completo no `title`) — linha que quebrava em duas dobrava de altura.
+- **Gráficos**: o sistema não tem nenhum hoje; a regra (SVG gerado no servidor, sem
+  biblioteca por CDN) vale para os que a Fase 4 criar.
+- **`scripts/capturar_telas.py`**: sobe o sistema sobre o banco congelado, entra com
+  usuário de teste e fotografa cada tela no Chrome sem interface, contando as linhas
+  inteiramente visíveis. Mesma medida para antes e depois.
+
+### Linhas visíveis sem rolar (1366×768; área útil de janela maximizada 1366×643)
+| Tela | Antes | Depois |
+|---|---:|---:|
+| **Despesas** (critério de aceite) | 14 | **20** |
+| Dashboard (quadro de resultado) | 10 | 10 |
+| Receitas Vendas | 18 | 20 |
+| Receitas Serviços | 18 | 20 |
+| Análise de Receitas | 14 | 14 |
+
+Capturas em `relatorios/capturas/antes` e `depois` (fora do git: mostram dados reais).
+Testes: 255 (golden idêntico; o teste de segurança confere que nenhum template ganhou
+script ou estilo inline).
+
+### Decisões
+1. Barra com 42 px de altura (56 px no Impostos): repete em toda tela e cada pixel é
+   fração de linha de tabela.
+2. Os cartões do Dashboard continuam numa faixa própria: três cartões com as notas de
+   composição não cabem na linha do título em 1366 px sem espremer o texto; a tela
+   manteve as 10 linhas de antes.
+3. Tamanho da fonte das tabelas (11 px) mantido; números em 10,5 px na mono, que é
+   mais larga.
+
+---
+
 ## Fase 2 — Segurança da informação · 24/09/2026 · validada pelo Neto e mesclada (PR #7)
 
 ### O que foi feito

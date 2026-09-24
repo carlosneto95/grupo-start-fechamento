@@ -111,6 +111,6 @@ def test_despesas_limita_linhas_desenhadas_mas_soma_todas(cliente, monkeypatch):
     assert c["linhas_ocultas"] == 8
     assert c["total_considerado"] == pytest.approx(1000 + 500 + 2000 + 3000 + 900 + 100 + 400 + 60)
     corpo = cliente.get("/despesas").get_data(as_text=True)
-    assert "Mostrando as primeiras 3 de 11" in corpo and "todas=1" in corpo
+    assert "Mostrando 3 de 11 linhas" in corpo and "todas=1" in corpo
     todas = _contexto(cliente, "/despesas?todas=1")
     assert len(todas["contas_exibidas"]) == 11 and todas["linhas_ocultas"] == 0

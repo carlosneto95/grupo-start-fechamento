@@ -44,6 +44,8 @@ dev = [
     "pre-commit==4.6.2",
     "detect-secrets==1.5.0",
     "pip-audit==2.10.1",
+    # Captura de tela da Fase 3 (scripts/capturar_telas.py), com o Chrome instalado.
+    "playwright==1.63.0",
 ]
 
 [tool.pytest.ini_options]
