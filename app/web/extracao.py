@@ -4,6 +4,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, render_template, request
 
+from app import sincronizar_tudo
 from app.config.companies import load_companies
 from app.extracao_job import estado_atual, iniciar as iniciar_job
 
@@ -18,6 +19,7 @@ def tela():
         empresas=load_companies(),
         anos=list(range(hoje.year - 3, hoje.year + 2)),
         ano_atual=hoje.year,
+        ultimas=sincronizar_tudo.ultimas(),
     )
 
 

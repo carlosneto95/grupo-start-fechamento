@@ -1,25 +1,25 @@
 """
-Sincroniza o banco local com o Tiny pela linha de comando.
-
-Faz o mesmo que os botões da tela "Sincronizar com o Tiny", mas sem depender do
-servidor web ficar de pé — útil para a carga inicial (que demora) e para agendar
-no futuro.
+Sincroniza o banco com o Tiny pela linha de comando — o MESMO job da tela e
+da tarefa agendada (app/sincronizar_tudo.py): despesas e notas, com histórico
+gravado em `sincronizacoes`.
 
 Uso:
-    python scripts/sincronizar.py MSV             # empresa obrigatória, ano atual
-    python scripts/sincronizar.py MSV 2026        # empresa e ano
+    python scripts/sincronizar.py MSV                 # empresa, ano atual, contas e notas
+    python scripts/sincronizar.py MSV 2026
+    python scripts/sincronizar.py TODAS 2026          # as três, uma após a outra
     python scripts/sincronizar.py MSV 2026 --forcar   # rebusca tudo (pega mudança de competência)
-    python scripts/sincronizar.py TODAS 2026      # todas as empresas, uma após a outra
+    python scripts/sincronizar.py MSV 2026 --so notas # só receitas (ou --so contas)
 
-    # período livre em vez de ano (para carga histórica completa):
+    # período livre em vez de ano (carga histórica):
     python scripts/sincronizar.py START --desde 2015-01-01 --ate 2035-12-31
 
-    # escolher por qual data filtrar (padrão: as duas)
+    # por qual data filtrar as CONTAS (padrão: as duas)
     python scripts/sincronizar.py START --desde 2025-01-01 --por emissao
 
-A empresa é obrigatória de propósito: sincronizar "todas" sem querer pode
-disparar horas de trabalho, porque cada empresa tem seu próprio volume.
+A empresa é obrigatória de propósito: "todas" sem querer pode disparar horas
+de trabalho, porque cada empresa tem seu próprio volume.
 """
+
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -27,11 +27,13 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app.config.companies import load_companies
-from app.db import init_db
-from app.sincronizacao import sincronizar
-from app.tiny_client.api_client import TinyAPIClient, TinyAPIError
-from app.trava import SincronizacaoEmAndamento
+from app import sincronizar_tudo  # noqa: E402
+from app.config.companies import load_companies  # noqa: E402
+from app.db import init_db  # noqa: E402
+from app.sincronizacao import periodo_do_ano  # noqa: E402
+
+POR = {"emissao": ("emissao",), "vencimento": ("vencimento",), "ambos": ("emissao", "vencimento")}
+SO = {"contas": ("contas",), "notas": ("notas",), None: sincronizar_tudo.TIPOS}
 
 
 def opcao(nome: str, padrao=None):
@@ -44,35 +46,61 @@ def opcao(nome: str, padrao=None):
     return padrao
 
 
-def main():
-    argumentos = [a for a in sys.argv[1:] if not a.startswith("--")]
-    forcar = "--forcar" in sys.argv
+def escolher_empresas(alvo: str, todas):
+    if alvo.upper() == "TODAS":
+        return todas
+    return [e for e in todas if alvo.upper() in (e.nome.upper(), e.key.upper())]
+
+
+def imprimir_progresso():
+    """Imprime a cada 5% por (empresa, tipo), sem inundar o terminal."""
+    marcos: dict = {}
+
+    def progresso(empresa, tipo, feitos, total, etapa):
+        if not (total and feitos):
+            return
+        pct = int(100 * feitos / total)
+        if pct // 5 != marcos.get((empresa, tipo)):
+            marcos[(empresa, tipo)] = pct // 5
+            print(
+                f"  [{datetime.now():%H:%M:%S}] {empresa}/{tipo} {feitos}/{total} ({pct}%) — {etapa}"
+            )
+
+    return progresso
+
+
+def main(origem: str = "cli") -> int:
+    # Posicionais: tudo que não é "--opção" nem o VALOR de uma opção (--desde X).
+    posicoes_de_valor = {
+        i + 1 for i, a in enumerate(sys.argv) if a in ("--desde", "--ate", "--por", "--so")
+    }
+    argumentos = [
+        a
+        for i, a in enumerate(sys.argv)
+        if i > 0 and not a.startswith("--") and i not in posicoes_de_valor
+    ]
 
     todas = load_companies()
     if not todas:
-        print("Nenhuma empresa configurada no .env ainda.")
-        return
-
-    disponiveis = ", ".join(e.nome for e in todas)
+        print("Nenhuma empresa configurada no .env.")
+        return 1
     if not argumentos:
-        print("Informe a empresa. Exemplo:\n")
-        print(f"    python scripts/sincronizar.py {todas[0].nome} 2026\n")
-        print(f"Empresas configuradas: {disponiveis}")
-        print("Use TODAS para sincronizar todas (pode levar horas).")
-        return
+        print(__doc__)
+        print("Empresas configuradas:", ", ".join(e.nome for e in todas), "(ou TODAS)")
+        return 1
 
-    alvo = argumentos[0]
+    empresas = escolher_empresas(argumentos[0], todas)
+    if not empresas:
+        print(f"Empresa '{argumentos[0]}' não encontrada.")
+        return 1
+
+    por = POR.get((opcao("por") or "ambos").lower())
+    tipos = SO.get(opcao("so"))
+    if por is None or tipos is None:
+        print("--por aceita emissao|vencimento|ambos; --so aceita contas|notas.")
+        return 1
 
     desde, ate = opcao("desde"), opcao("ate")
-    por_texto = (opcao("por") or "ambos").lower()
-    por = {"emissao": ("emissao",), "vencimento": ("vencimento",),
-           "ambos": ("emissao", "vencimento")}.get(por_texto)
-    if por is None:
-        print(f"--por inválido: {por_texto}. Use emissao, vencimento ou ambos.")
-        return
-
-    periodo = None
-    ano = None
     if desde or ate:
         periodo = (
             date.fromisoformat(desde) if desde else date(2000, 1, 1),
@@ -80,70 +108,34 @@ def main():
         )
     else:
         ano = int(argumentos[1]) if len(argumentos) > 1 else date.today().year
-
-    if alvo.upper() == "TODAS":
-        empresas = todas
-    else:
-        empresas = [e for e in todas if e.nome.upper() == alvo.upper() or e.key.upper() == alvo.upper()]
-        if not empresas:
-            print(f"Empresa '{alvo}' não encontrada. Configuradas: {disponiveis}")
-            return
+        periodo = periodo_do_ano(ano)
 
     init_db()
-    modo = "FORÇADO (rebusca tudo)" if forcar else "normal (só novas e alteradas)"
-    alcance = (f"{periodo[0]} a {periodo[1]}" if periodo else str(ano))
-    print(f"Sincronizando {alcance} — filtro por {por_texto} — modo {modo}\n")
+    pedido = sincronizar_tudo.Pedido(
+        empresas=empresas,
+        periodo=periodo,
+        origem=origem,
+        tipos=tipos,
+        forcar="--forcar" in sys.argv,
+        por=por,
+    )
+    modo = "FORÇADO (rebusca tudo)" if pedido.forcar else "normal (só novas e alteradas)"
+    print(f"Sincronizando {periodo[0]} a {periodo[1]} — {', '.join(tipos)} — modo {modo}\n")
 
-    for empresa in empresas:
-        print(f"=== {empresa.nome} ===")
-        if not empresa.has_api_token:
-            print("  sem token de API no .env — pulando.\n")
-            continue
+    resultados = sincronizar_tudo.executar(pedido, progresso=imprimir_progresso())
 
-        cliente = TinyAPIClient(token=empresa.tiny_api_token, empresa_nome=empresa.nome)
-        if not cliente.testar_conexao():
-            print("  não consegui conectar (token inválido ou sem internet) — pulando.\n")
-            continue
-
-        ultimo = {"marco": -1}
-
-        def progresso(feitos, total, etapa, ultimo=ultimo):
-            if total and feitos:
-                pct = int(100 * feitos / total)
-                if pct // 5 != ultimo["marco"]:
-                    ultimo["marco"] = pct // 5
-                    agora = datetime.now().strftime("%H:%M:%S")
-                    print(f"  [{agora}] {feitos}/{total} ({pct}%) — {etapa}")
-            elif total:
-                print(f"  {total} contas encontradas... — {etapa}", end="\r")
-
-        try:
-            resumo = sincronizar(cliente, empresa.nome, ano, forcar=forcar,
-                                 progresso=progresso, periodo=periodo, por=por)
-        except SincronizacaoEmAndamento as e:
-            print(f"  {e}")
-            print("  (rodar duas ao mesmo tempo faz as duas ficarem lentas por rate limit)\n")
-            return
-        except TinyAPIError as e:
-            print(f"  ERRO: {e}\n")
-            continue
-
-        print(f"\n  encontradas no período : {resumo['encontradas']}")
-        print(f"  novas gravadas         : {resumo['novas']}")
-        print(f"  atualizadas            : {resumo['atualizadas']}")
-        print(f"  sem mudança            : {resumo['sem_mudanca']}")
-
-        if resumo["mudancas"]:
-            print("\n  o que mudou no ERP:")
-            for m in resumo["mudancas"]:
-                difs = "; ".join(
-                    f"{d['campo']}: {d['de']} -> {d['para']}" for d in m["diferencas"]
-                )
-                print(f"    - {m['fornecedor']}: {difs}")
-            if resumo.get("mudancas_total", 0) > len(resumo["mudancas"]):
-                print(f"    (mostrando {len(resumo['mudancas'])} de {resumo['mudancas_total']})")
-        print()
+    print()
+    for r in resultados:
+        if r.status == "ok":
+            print(
+                f"{r.empresa}/{r.tipo}: {r.resumo.get('encontradas')} no período, "
+                f"{r.resumo.get('novas')} novas, {r.resumo.get('atualizadas')} atualizadas"
+            )
+        else:
+            print(f"{r.empresa}/{r.tipo}: ERRO — {r.erro}")
+    # Código de saída 1 se qualquer parte falhou: a tarefa agendada precisa enxergar.
+    return 0 if all(r.status == "ok" for r in resultados) else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
