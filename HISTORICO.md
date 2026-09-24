@@ -9,7 +9,7 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 2 — Segurança da informação · 24/09/2026 · aguardando validação
+## Fase 2 — Segurança da informação · 24/09/2026 · validada pelo Neto e mesclada (PR #7)
 
 ### O que foi feito
 - **Login** (padrão do Impostos): hash scrypt, bloqueio de 15 min após 5 erros,
@@ -61,7 +61,7 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
    junto com ela, na Fase 4.
 
 ### Pendências
-- **Neto:** entrar com a senha provisória e definir a própria.
+- ~~Neto: entrar com a senha provisória e definir a própria~~ — feito em 24/09/2026 18:17 (auditoria).
 - Fase 5: `.env` com permissão 600, `GSF_PREFIXO`, Force HTTPS.
 
 ---
