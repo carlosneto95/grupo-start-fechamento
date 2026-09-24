@@ -2,54 +2,71 @@
    Grupo Start — Fechamento
    Interface densa de dados financeiros.
 
-   Princípios:
-   - Neutros levemente azulados, um acento (índigo) e duas cores
-     semânticas (receita/despesa). Cor só onde carrega significado.
-   - Superfícies chapadas com sombra sutil; a hierarquia vem do
-     contraste e do espaço, não de molduras pesadas.
-   - Densidade alta preservada: o ganho estético não pode custar
-     linhas visíveis por tela.
+   Identidade visual (Fase 3): a MESMA família do Controle de Impostos —
+   paleta, fontes, barra escura com o logo, selos e cartões. Os nomes dos
+   tokens deste arquivo foram mantidos; mudaram os VALORES, para a troca
+   valer em todo o sistema de uma vez.
+
+   Paleta (Impostos): fundo #F4F1EA · superfície #FFFDF8 · barra #1C1B19 ·
+   destaque #0F5C55 · borda #DDD7CA · verde #2E7D4F · amarelo #B7791F ·
+   vermelho #B42318. Receita = verde; despesa = vermelho; o índigo saiu.
+   Fontes: Fraunces (títulos) · IBM Plex Sans (texto) · IBM Plex Mono com
+   tabular-nums em todo número.
+
+   CONFLITO RESOLVIDO: o Impostos usa corpo de 15px e bastante respiro; este
+   sistema tem regra de INTERFACE DENSA. Daqui vêm tokens, cores, fontes e
+   barra; a escala compacta das tabelas fica. Critério: em 1366×768 a tela
+   de Despesas mostra pelo menos as mesmas linhas de antes
+   (scripts/capturar_telas.py).
    ========================================================= */
 
 :root {
-    /* Neutros — escala slate com toque de azul */
-    --tinta:         #0f172a;
-    --tinta-media:   #334155;
-    --tinta-suave:   #64748b;
-    --tinta-fraca:   #94a3b8;
+    /* Texto — tons quentes da paleta do Impostos */
+    --tinta:         #1C1B19;
+    --tinta-media:   #3F3C36;
+    --tinta-suave:   #6B675E;
+    --tinta-fraca:   #9A9588;
 
-    --fundo:         #f1f5f9;
-    --superficie:    #ffffff;
-    --superficie-2:  #f8fafc;
-    --borda:         #e2e8f0;
-    --borda-forte:   #cbd5e1;
+    --fundo:         #F4F1EA;
+    --superficie:    #FFFDF8;
+    --superficie-2:  #F8F5EE;
+    --borda:         #DDD7CA;
+    --borda-forte:   #CFC7B6;
+    --barra:         #1C1B19;
 
-    /* Acento */
-    --acento:        #4f46e5;
-    --acento-vivo:   #6366f1;
-    --acento-fraco:  #eef2ff;
-    --acento-borda:  #c7d2fe;
-    --acento-forte:  #4338ca;
+    /* Destaque (o índigo antigo saiu): verde-petróleo do Impostos */
+    --acento:        #0F5C55;
+    --acento-vivo:   #14766D;
+    --acento-fraco:  #E3EEEC;
+    --acento-borda:  #B9D6D1;
+    --acento-forte:  #0B4A44;
 
-    /* Semânticas */
-    --receita:       #059669;
-    --receita-fraco: #ecfdf5;
-    --receita-borda: #a7f3d0;
-    --despesa:       #e11d48;
-    --despesa-fraco: #fff1f2;
-    --despesa-borda: #fecdd3;
+    /* Semânticas: receita verde, despesa vermelho, atenção amarelo */
+    --receita:       #2E7D4F;
+    --receita-fraco: #EAF4EE;
+    --receita-borda: #B9DBC6;
+    --despesa:       #B42318;
+    --despesa-fraco: #FBECEA;
+    --despesa-borda: #EFC2BD;
+    --amarelo:       #B7791F;
+    --amarelo-fraco: #FBF3E4;
+
+    /* Fontes (Google Fonts, liberado na CSP) com substitutas locais */
+    --titulo: "Fraunces", Georgia, serif;
+    --corpo:  "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono:   "IBM Plex Mono", ui-monospace, Consolas, monospace;
 
     --raio:    10px;
     --raio-m:  7px;
     --raio-p:  5px;
 
-    /* Sombras em camadas: uma linha de contato e um halo difuso. */
-    --sombra:      0 1px 2px rgba(15, 23, 42, .04),
-                   0 1px 3px rgba(15, 23, 42, .06);
-    --sombra-media: 0 2px 4px rgba(15, 23, 42, .04),
-                    0 4px 12px rgba(15, 23, 42, .07);
-    --sombra-alta: 0 4px 8px rgba(15, 23, 42, .06),
-                   0 12px 28px rgba(15, 23, 42, .14);
+    /* Sombras em tom quente, discretas. */
+    --sombra:      0 1px 2px rgba(28, 27, 25, .04),
+                   0 1px 3px rgba(28, 27, 25, .06);
+    --sombra-media: 0 2px 4px rgba(28, 27, 25, .04),
+                    0 4px 12px rgba(28, 27, 25, .08);
+    --sombra-alta: 0 4px 8px rgba(28, 27, 25, .06),
+                   0 12px 28px rgba(28, 27, 25, .16);
 
     --anima: 130ms cubic-bezier(.4, 0, .2, 1);
 
@@ -74,8 +91,7 @@ body {
     margin: 0;
     background: var(--fundo);
     color: var(--tinta);
-    font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system,
-                 BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--corpo);
     font-size: 11.5px;
     line-height: 1.35;
     -webkit-font-smoothing: antialiased;
@@ -96,85 +112,124 @@ body {
 
 :focus-visible { outline: 2px solid var(--acento-vivo); outline-offset: 1px; border-radius: 3px; }
 
-/* ---------- Topo e navegação ---------- */
+/* ---------- Topo e navegação (barra escura do Impostos) ---------- */
 
 .topo {
-    background: rgba(255, 255, 255, .85);
-    backdrop-filter: saturate(1.6) blur(10px);
-    border-bottom: 1px solid var(--borda);
+    background: var(--barra);
+    color: #F4F1EA;
     position: sticky;
     top: 0;
     z-index: 50;
 }
 
+/* Altura contida (42px, contra 56px no Impostos): a barra repete em toda
+   tela e cada pixel dela é uma fração de linha de tabela a menos. */
 .topo-interno {
     max-width: 1800px;
     margin: 0 auto;
     padding: 0 var(--esp-5);
     display: flex;
     align-items: center;
-    gap: var(--esp-6);
-    min-height: 40px;
+    gap: var(--esp-5);
+    min-height: 42px;
 }
 
 .marca {
-    font-weight: 650;
-    font-size: 13px;
-    color: var(--tinta);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     text-decoration: none;
-    white-space: nowrap;
-    letter-spacing: -.01em;
+    flex-shrink: 0;
+}
+.marca-logo { height: 24px; width: auto; display: block; }
+.marca-sistema {
+    font-family: var(--titulo);
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(244, 241, 234, .7);
+}
+
+.navegacao { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.navegacao::-webkit-scrollbar { display: none; }
+
+.navegacao a {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-
-/* Marca d'água em forma de ponto de acento antes do nome. */
-.marca::before {
-    content: "";
-    width: 7px; height: 7px;
-    border-radius: 2px;
-    background: linear-gradient(135deg, var(--acento-vivo), var(--acento-forte));
-}
-
-.marca span { color: var(--tinta-fraca); font-weight: 400; }
-
-.navegacao { display: flex; gap: 1px; flex-wrap: wrap; }
-
-.navegacao a {
-    position: relative;
-    padding: 4px 10px;
-    border-radius: var(--raio-p);
-    color: var(--tinta-suave);
+    padding: 5px 9px;
+    border-radius: var(--raio-m);
+    color: rgba(244, 241, 234, .72);
     text-decoration: none;
+    font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
     transition: color var(--anima), background var(--anima);
 }
+.navegacao a:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.navegacao a.ativo { background: var(--acento); color: #fff; }
 
-.navegacao a:hover { background: var(--superficie-2); color: var(--tinta); }
+.ico { width: 15px; height: 15px; flex-shrink: 0; }
 
-.navegacao a.ativo { color: var(--acento-forte); background: var(--acento-fraco); }
+/* Usuário e Sair à direita. */
+.usuario-logado { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
+.usuario-nome {
+    display: flex; align-items: center; gap: 7px;
+    color: #F4F1EA; text-decoration: none; padding: 3px 7px; border-radius: var(--raio-m);
+}
+.usuario-nome:hover { background: rgba(255, 255, 255, .08); }
+.usuario-inicial {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--acento); color: #fff;
+    display: grid; place-items: center; font-weight: 600; font-size: 12px;
+}
+.usuario-texto { display: flex; flex-direction: column; font-size: 12px; line-height: 1.15; }
+.usuario-texto small { color: rgba(244, 241, 234, .6); font-size: 10px; }
+.form-sair { margin: 0; }
+.botao-sair {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: none; border: 1px solid rgba(244, 241, 234, .25); color: inherit;
+    padding: 4px 9px; border-radius: var(--raio-m); font: inherit; font-size: 12px; cursor: pointer;
+}
+.botao-sair:hover { background: rgba(255, 255, 255, .08); color: #fff; border-color: rgba(244, 241, 234, .4); }
+
+/* Tela estreita: menu rola na horizontal, texto do usuário some. */
+@media (max-width: 1100px) {
+    .usuario-texto, .botao-sair span, .marca-sistema { display: none; }
+}
 
 /* ---------- Estrutura ---------- */
 
 .conteudo { max-width: 1800px; margin: 0 auto; padding: var(--esp-4) var(--esp-5) var(--esp-6); }
 
-.cabecalho-pagina { margin-bottom: var(--esp-4); }
+/* Título e ações na MESMA faixa (Fase 3): o cartão de total de Despesas e
+   Receitas vive aqui, em vez de ocupar uma faixa só dele. */
+.cabecalho-pagina {
+    display: flex;
+    align-items: center;
+    gap: var(--esp-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--esp-2);
+    min-height: 28px;
+}
 
 .cabecalho-pagina h1 {
     margin: 0;
-    font-size: 15px;
-    font-weight: 650;
-    letter-spacing: -.015em;
+    font-family: var(--titulo);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -.01em;
 }
+
+.cabecalho-acoes { display: flex; gap: var(--esp-3); margin-left: auto; }
+.cabecalho-acoes:empty { display: none; }
 
 h2 { font-size: 12.5px; font-weight: 650; margin: 0 0 var(--esp-3); letter-spacing: -.01em; }
 
 .legenda { color: var(--tinta-suave); font-size: 11px; margin: var(--esp-2) 0; }
 
 .aviso {
-    color: #9f1239;
+    color: #8A1C12;
     background: var(--despesa-fraco);
     border: 1px solid var(--despesa-borda);
     border-radius: var(--raio-m);
@@ -223,7 +278,7 @@ select, input[type="text"], input[type="date"], input[type="search"] {
     max-width: 240px;
     transition: border-color var(--anima), box-shadow var(--anima);
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2364748b' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236B675E' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 7px center;
 }
@@ -259,7 +314,7 @@ button:active { transform: translateY(.5px); }
     background: linear-gradient(180deg, var(--acento-vivo), var(--acento));
     border-color: var(--acento-forte);
     color: #fff;
-    box-shadow: 0 1px 2px rgba(79, 70, 229, .3);
+    box-shadow: 0 1px 2px rgba(15, 92, 85, .3);
 }
 
 .filtros button[type="submit"]:hover, .botao-principal:hover {
@@ -342,8 +397,8 @@ button:active { transform: translateY(.5px); }
     background: var(--borda-forte);
 }
 
-.cartao.positivo::before { background: linear-gradient(180deg, #34d399, var(--receita)); }
-.cartao.negativo::before { background: linear-gradient(180deg, #fb7185, var(--despesa)); }
+.cartao.positivo::before { background: linear-gradient(180deg, #5BAE7F, var(--receita)); }
+.cartao.negativo::before { background: linear-gradient(180deg, #D2645A, var(--despesa)); }
 .cartao.destaque::before { background: linear-gradient(180deg, var(--acento-vivo), var(--acento-forte)); }
 
 .cartao-rotulo {
@@ -366,7 +421,7 @@ button:active { transform: translateY(.5px); }
 
 .cartao.positivo .cartao-valor { color: var(--receita); }
 .cartao.negativo .cartao-valor { color: var(--despesa); }
-.cartao.destaque { background: linear-gradient(180deg, #fbfbff, var(--superficie)); border-color: var(--acento-borda); }
+.cartao.destaque { background: linear-gradient(180deg, var(--superficie), var(--superficie)); border-color: var(--acento-borda); }
 .cartao.destaque .cartao-valor { color: var(--acento-forte); }
 
 /* ---------- Tabelas ---------- */
@@ -457,8 +512,8 @@ tr.linha-desconsiderada td:not(:first-child) { text-decoration: line-through; }
     font-weight: 500;
 }
 
-.etiqueta.ok { background: var(--receita-fraco); color: #047857; border-color: var(--receita-borda); }
-.etiqueta.fora { background: var(--despesa-fraco); color: #be123c; border-color: var(--despesa-borda); }
+.etiqueta.ok { background: var(--receita-fraco); color: #1F5A38; border-color: var(--receita-borda); }
+.etiqueta.fora { background: var(--despesa-fraco); color: var(--despesa); border-color: var(--despesa-borda); }
 
 /* ---------- Barras de participação ---------- */
 
@@ -474,8 +529,8 @@ tr.linha-desconsiderada td:not(:first-child) { text-decoration: line-through; }
     min-width: 2px;
 }
 
-.barra.receita { background: linear-gradient(90deg, #34d399, var(--receita)); }
-.barra.despesa { background: linear-gradient(90deg, #fb7185, var(--despesa)); }
+.barra.receita { background: linear-gradient(90deg, #5BAE7F, var(--receita)); }
+.barra.despesa { background: linear-gradient(90deg, #D2645A, var(--despesa)); }
 
 .valor-positivo { color: var(--receita); font-weight: 600; }
 .valor-negativo { color: var(--despesa); font-weight: 600; }
@@ -602,7 +657,7 @@ tr.linha-desconsiderada td:not(:first-child) { text-decoration: line-through; }
     background: linear-gradient(180deg, var(--acento-vivo), var(--acento));
     color: #fff;
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(79, 70, 229, .25);
+    box-shadow: 0 1px 2px rgba(15, 92, 85, .25);
 }
 
 .slicer-grupo {
@@ -745,7 +800,7 @@ legend {
     white-space: nowrap;
 }
 
-.limpar-filtros:hover { background: #ffe4e6; }
+.limpar-filtros:hover { background: #F6DCD8; }
 
 /* O cabeçalho passa a ter rótulo + funil lado a lado. */
 .th-conteudo { display: flex; align-items: center; gap: 3px; justify-content: space-between; }
@@ -1186,7 +1241,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Listra clara: com muitas colunas de número, o olho perde a linha no meio da
    travessia horizontal. */
 .grade-receita tbody tr:nth-child(even) td { background: var(--superficie-2); }
-.grade-receita tbody tr:nth-child(even) .col-categoria { background: #f3f6fa; }
+.grade-receita tbody tr:nth-child(even) .col-categoria { background: var(--superficie-2); }
 .grade-receita tbody tr:hover td { background: var(--acento-fraco); }
 
 .grade-receita .col-total {
@@ -1194,7 +1249,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     border-left: 1px solid var(--borda-forte);
     background: var(--superficie-2);
 }
-.grade-receita tbody tr:nth-child(even) .col-total { background: #f3f6fa; }
+.grade-receita tbody tr:nth-child(even) .col-total { background: var(--superficie-2); }
 
 .grade-receita .celula-zero { color: var(--borda-forte); }
 .grade-receita .percentual { color: var(--tinta-suave); }
@@ -1222,15 +1277,72 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tabela-arvore .recuo-nivel-1 { padding-left: 26px; }
 .tabela-arvore .recuo-nivel-2 { padding-left: 62px; }
 
-/* Barra superior: usuário logado e Sair (Fase 2). */
-.usuario-logado { display: flex; align-items: center; gap: var(--esp-3); margin-left: auto; font-size: 11px; }
-.usuario-logado a { color: var(--tinta-suave); text-decoration: none; }
-.usuario-logado a:hover { color: var(--tinta); }
-.form-sair { margin: 0; }
-.botao-sair { font-size: 11px; padding: 2px 8px; }
-
 /* Login e troca de senha: um cartão estreito no meio da tela. */
 .caixa-login { max-width: 340px; margin: 48px auto; padding: var(--esp-5); }
 .caixa-login label { display: flex; flex-direction: column; gap: 3px; margin-bottom: var(--esp-4); font-size: 11px; font-weight: 600; color: var(--tinta-suave); }
 .caixa-login input { font-size: 13px; padding: 6px 8px; }
-.senha-provisoria { font-family: ui-monospace, monospace; font-size: 16px; letter-spacing: .05em; padding: var(--esp-3); background: var(--superficie-2); user-select: all; }
+.senha-provisoria { font-family: var(--mono); font-size: 16px; letter-spacing: .05em; padding: var(--esp-3); background: var(--superficie-2); user-select: all; }
+
+
+/* =========================================================
+   Fase 3 — identidade visual do Controle de Impostos
+   ========================================================= */
+
+/* Todo número em IBM Plex Mono com algarismos de largura igual: valor,
+   total, percentual, data e competência alinham na coluna. */
+.num, .data, .cartao-valor, td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.data { white-space: nowrap; font-size: 10.5px; }
+td.num { font-size: 10.5px; }
+
+h2 { font-family: var(--titulo); font-weight: 600; font-size: 14px; }
+
+/* Cartão de total na linha do título: rótulo, valor e nota lado a lado. */
+.cartao.cartao-linha {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--esp-3);
+    padding: 5px var(--esp-4) 5px var(--esp-5);
+    min-width: 0;
+}
+.cartao-linha .cartao-valor { font-size: 15px; }
+
+/* Texto longo numa linha só, com reticências; o completo fica no title.
+   Linha que quebrava em duas (ex.: FINANCIAMENTO VEICULO) dobrava de altura
+   e custava linhas visíveis. */
+td.texto-longo, td.texto-medio {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+td.texto-longo { max-width: 280px; }
+td.texto-medio { max-width: 150px; }
+
+/* Selos no padrão do Impostos. */
+.etiqueta { background: #ECE7DC; border-color: transparent; color: var(--tinta-suave); }
+.etiqueta.ok { background: var(--receita-fraco); color: var(--receita); border-color: transparent; }
+.etiqueta.fora { background: var(--despesa-fraco); color: var(--despesa); border-color: transparent; }
+
+/* Faixa de ferramentas compacta (limpar filtros + aviso do limite). */
+.barra-ferramentas { min-height: 0; margin-bottom: var(--esp-2); }
+.barra-ferramentas .aviso-linha { margin: 0; padding: 2px 8px; }
+
+/* Login: logo sobre a barra escura, como no Impostos. */
+.caixa-login .logo-login {
+    display: block; height: 40px; width: auto; margin: 0 0 var(--esp-5);
+    background: var(--barra); border-radius: var(--raio); padding: 8px 14px; box-sizing: content-box;
+}
+.caixa-login h2 { font-size: 18px; }
+
+/* Links na cor de destaque (o azul padrão do navegador fugia da paleta). */
+a { color: var(--acento); }
+a:hover { color: var(--acento-forte); }
+/* Link com cara de botão não leva sublinhado. */
+a.botao-principal { text-decoration: none; display: inline-block; color: #fff; }
+
+/* Login: o cartão é flex em coluna e esticava o logo; campos com a mesma largura. */
+.caixa-login .logo-login { align-self: flex-start; }
+.caixa-login input {
+    width: 100%; max-width: none; box-sizing: border-box;
+    padding: 6px 8px; font-size: 13px;
+    border: 1px solid var(--borda-forte); border-radius: var(--raio-p); background: var(--superficie);
+}

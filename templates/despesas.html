@@ -5,44 +5,46 @@
 {% block titulo %}Despesas — Grupo Start{% endblock %}
 {% block cabecalho %}Despesas — contas a pagar{% endblock %}
 
+{# O total fica na linha do título (Fase 3): antes ocupava uma faixa própria,
+   com o lado esquerdo vazio, e custava linhas da tabela em 1366×768. #}
+{% block cabecalho_acoes %}
+<div class="cartao destaque cartao-linha">
+    <span class="cartao-rotulo">Total considerado</span>
+    <strong class="cartao-valor" id="total-considerado" data-total="{{ total_considerado }}">
+        R$ {{ total_considerado|moeda }}
+    </strong>
+    <span class="cartao-nota">
+        {{ contas|selectattr("considerar_efetivo")|list|length }} de {{ contas|length }} lançamentos
+    </span>
+</div>
+{% endblock %}
+
 {% block corpo %}
 {# O formulário envolve a tabela inteira: os filtros vivem nos cabeçalhos e
    precisam ser enviados junto com a ordenação. #}
 <form method="get" id="form-tabela">
+    {# Ordenação viaja em campo escondido para não se perder ao aplicar filtro. #}
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+    {% if mostrando_todas %}<input type="hidden" name="todas" value="1">{% endif %}
+
+    {# Uma faixa só, e só quando há o que dizer: limpar filtros e o aviso do
+       limite de linhas (app/paineis.py:LINHAS_NA_TELA; o total soma todas). #}
+    {% if filtros_coluna or linhas_ocultas %}
     <div class="barra-ferramentas">
         {% if filtros_coluna %}
         <a class="limpar-filtros" href="{{ url_for('despesas.listar') }}">
             Limpar {{ filtros_coluna|length }} filtro(s)
         </a>
         {% endif %}
-
-        <div class="cartoes cartoes-compactos">
-            <div class="cartao destaque">
-                <span class="cartao-rotulo">Total considerado</span>
-                <strong class="cartao-valor" id="total-considerado" data-total="{{ total_considerado }}">
-                    R$ {{ total_considerado|moeda }}
-                </strong>
-                <span class="cartao-nota">
-                    {{ contas|selectattr("considerar_efetivo")|list|length }} de {{ contas|length }} lançamentos
-                </span>
-            </div>
-        </div>
+        {% if linhas_ocultas %}
+        <span class="aviso-linha">
+            Mostrando {{ contas_exibidas|length }} de {{ contas|length }} linhas (o total soma todas) —
+            <a href="{{ url_for('despesas.listar', **dict(args_atuais, todas='1')) }}">mostrar todas</a>
+            ou filtre pelo cabeçalho.
+        </span>
+        {% endif %}
     </div>
-
-    {# Ordenação viaja em campo escondido para não se perder ao aplicar filtro. #}
-    <input type="hidden" name="ordenar" value="{{ ordenar }}">
-    <input type="hidden" name="direcao" value="{{ direcao }}">
-    {% if mostrando_todas %}<input type="hidden" name="todas" value="1">{% endif %}
-
-    {# Limite de linhas desenhadas (app/paineis.py:LINHAS_NA_TELA). O total do
-       cartão acima já soma todas; aqui só avisa e oferece desenhar o resto. #}
-    {% if linhas_ocultas %}
-    <p class="aviso-linha">
-        Mostrando as primeiras {{ contas_exibidas|length }} de {{ contas|length }} linhas
-        (o total considerado soma todas).
-        <a href="{{ url_for('despesas.listar', **dict(args_atuais, todas='1')) }}">Mostrar todas</a>
-        ou filtre pelo cabeçalho.
-    </p>
     {% endif %}
 
     <div class="tabela-caixa">
@@ -79,14 +81,14 @@
                     {% endif %}
                 </td>
                 <td>{{ c.empresa }}</td>
-                <td>{{ c.fornecedor }}</td>
-                <td>{{ c.data_emissao or "" }}</td>
-                <td>{{ c.data_vencimento or "" }}</td>
-                <td>{{ c.data_liquidacao or "" }}</td>
-                <td>{{ c.competencia or "" }}</td>
+                <td class="texto-longo" title="{{ c.fornecedor or '' }}">{{ c.fornecedor }}</td>
+                <td class="data">{{ c.data_emissao or "" }}</td>
+                <td class="data">{{ c.data_vencimento or "" }}</td>
+                <td class="data">{{ c.data_liquidacao or "" }}</td>
+                <td class="data">{{ c.competencia or "" }}</td>
                 <td class="num">{{ c.valor|moeda }}</td>
-                <td>{{ c.categoria_primaria or "" }}</td>
-                <td>{{ c.subcategoria or "" }}</td>
+                <td class="texto-medio" title="{{ c.categoria_primaria or '' }}">{{ c.categoria_primaria or "" }}</td>
+                <td class="texto-medio" title="{{ c.subcategoria or '' }}">{{ c.subcategoria or "" }}</td>
                 <td><span class="etiqueta">{{ c.situacao or "" }}</span></td>
             </tr>
             {% endfor %}

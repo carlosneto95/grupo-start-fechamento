@@ -7,34 +7,35 @@
 {% block titulo %}{{ titulo }} — Grupo Start{% endblock %}
 {% block cabecalho %}{{ titulo }} — notas fiscais emitidas{% endblock %}
 
+{# Totais na linha do título (Fase 3), como em Despesas: uma faixa a menos. #}
+{% block cabecalho_acoes %}
+<div class="cartao destaque cartao-linha">
+    <span class="cartao-rotulo">Receita faturada</span>
+    <strong class="cartao-valor" id="total-considerado"
+            data-total="{{ total_receita }}">R$ {{ total_receita|moeda }}</strong>
+    <span class="cartao-nota">{{ quantidade }} nota(s)</span>
+</div>
+{% if excluidas %}
+<div class="cartao cartao-linha">
+    <span class="cartao-rotulo">Fora do faturamento</span>
+    <strong class="cartao-valor">R$ {{ total_excluido|moeda }}</strong>
+    <span class="cartao-nota">{{ excluidas }} cancelada(s)/rejeitada(s)/pendente(s)</span>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block corpo %}
 <form method="get" id="form-tabela">
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+    {% if filtros_coluna %}
     <div class="barra-ferramentas">
-        {% if filtros_coluna %}
         <a class="limpar-filtros" href="{{ url_for(rota) }}">
             Limpar {{ filtros_coluna|length }} filtro(s)
         </a>
-        {% endif %}
-
-        <div class="cartoes cartoes-compactos">
-            <div class="cartao destaque">
-                <span class="cartao-rotulo">Receita faturada</span>
-                <strong class="cartao-valor" id="total-considerado"
-                        data-total="{{ total_receita }}">R$ {{ total_receita|moeda }}</strong>
-                <span class="cartao-nota">{{ quantidade }} nota(s)</span>
-            </div>
-            {% if excluidas %}
-            <div class="cartao">
-                <span class="cartao-rotulo">Fora do faturamento</span>
-                <strong class="cartao-valor">R$ {{ total_excluido|moeda }}</strong>
-                <span class="cartao-nota">{{ excluidas }} cancelada(s)/rejeitada(s)/pendente(s)</span>
-            </div>
-            {% endif %}
-        </div>
     </div>
-
-    <input type="hidden" name="ordenar" value="{{ ordenar }}">
-    <input type="hidden" name="direcao" value="{{ direcao }}">
+    {% endif %}
 
     <p class="legenda">
         Clique na <strong>competência</strong> ou na <strong>categoria</strong> para editar.
@@ -80,9 +81,9 @@
                     {% endif %}
                 </td>
                 <td>{{ n.empresa }}</td>
-                <td>{{ n.numero or "" }}</td>
-                <td>{{ n.data_emissao or "" }}</td>
-                <td>{{ (n.cliente_nome or "")[:38] }}</td>
+                <td class="data">{{ n.numero or "" }}</td>
+                <td class="data">{{ n.data_emissao or "" }}</td>
+                <td class="texto-longo" title="{{ n.cliente_nome or '' }}">{{ n.cliente_nome or "" }}</td>
                 <td class="num">{{ n.valor|moeda }}</td>
                 <td>
                     {# A etiqueta segue a situação do ERP, não o override: ela
