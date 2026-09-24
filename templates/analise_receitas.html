@@ -1,0 +1,185 @@
+{% extends "_base.html" %}
+{% set secao = "analise_receitas" %}
+
+{% block titulo %}Análise Receitas — Grupo Start{% endblock %}
+{% block cabecalho %}Análise de receitas{% endblock %}
+
+{# Uma grade por bloco: categoria nas linhas (uma embaixo da outra), competência
+   nas colunas, valor cheio com centavos. A coluna da categoria fica congelada à
+   esquerda para o nome não sumir quando o ano tiver meses demais para caber. #}
+{% macro grade_bloco(bloco) %}
+<div class="painel-titulo">
+    <h2>{{ bloco.titulo }}</h2>
+    <span class="legenda">
+        R$ {{ bloco.total|moeda }} · {{ bloco.quantidade }} nota(s) ·
+        {{ bloco.linhas|length }} categoria(s) ·
+        média mensal R$ {{ bloco.media_mensal|moeda }}
+    </span>
+</div>
+
+<div class="tabela-caixa grade-caixa">
+    <table class="grade-receita">
+        <thead>
+            <tr>
+                <th class="col-categoria">Categoria</th>
+                {% for c in bloco.colunas %}
+                <th class="num" title="{{ c.mes }}/{{ c.competencia[3:] }} · R$ {{ c.total|moeda }} · {{ c.quantidade }} nota(s)">
+                    {{ c.competencia }}
+                    <span class="nome-mes">{{ c.mes }}</span>
+                </th>
+                {% endfor %}
+                <th class="num col-total">Total</th>
+                <th class="num">%</th>
+                <th class="num">Média</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in bloco.linhas %}
+            <tr>
+                <td class="col-categoria" title="{{ l.nome }} · {{ l.quantidade }} nota(s) · faturou em {{ l.meses_ativos }} de {{ bloco.colunas|length }} mês(es)">
+                    {{ l.nome }}
+                </td>
+                {% for cel in l.celulas %}
+                {# Célula vazia leva traço, não 0,00: "não faturou" e zero
+                   contábil são coisas diferentes, e 0,00 repetido afoga os
+                   números que importam. #}
+                <td class="num {{ 'celula-zero' if not cel.valor }}"
+                    title="{{ cel.quantidade }} nota(s)">
+                    {% if cel.valor %}{{ cel.valor|moeda }}{% else %}—{% endif %}
+                </td>
+                {% endfor %}
+                <td class="num col-total">{{ l.total|moeda }}</td>
+                <td class="num percentual">{{ "%.1f"|format(l.percentual) }}%</td>
+                <td class="num">{{ l.media|moeda }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td class="col-categoria"><strong>Total</strong></td>
+                {% for c in bloco.colunas %}
+                <td class="num" title="{{ '%.1f'|format(c.percentual) }}% do bloco · {{ c.quantidade }} nota(s)">{{ c.total|moeda }}</td>
+                {% endfor %}
+                <td class="num col-total">{{ bloco.total|moeda }}</td>
+                <td class="num percentual">100,0%</td>
+                <td class="num">{{ bloco.media_mensal|moeda }}</td>
+            </tr>
+            <tr class="linha-percentual">
+                <td class="col-categoria">% do bloco</td>
+                {% for c in bloco.colunas %}
+                <td class="num">{{ "%.1f"|format(c.percentual) }}%</td>
+                {% endfor %}
+                <td class="num col-total">100,0%</td>
+                <td class="num"></td>
+                <td class="num"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endmacro %}
+
+{% block corpo %}
+<form method="get" id="form-analise">
+
+    <div class="cartoes cartoes-compactos">
+        <div class="cartao destaque">
+            <span class="cartao-rotulo">Receita</span>
+            <strong class="cartao-valor">R$ {{ grade.total|moeda }}</strong>
+            <span class="cartao-nota">{{ grade.quantidade }} nota(s) · {{ grade.categorias }} categoria(s)</span>
+        </div>
+        <div class="cartao">
+            <span class="cartao-rotulo">Média mensal</span>
+            <strong class="cartao-valor">R$ {{ grade.media_mensal|moeda }}</strong>
+            <span class="cartao-nota">sobre {{ grade.meses_com_receita }} mês(es) com faturamento</span>
+        </div>
+        {% for b in grade.blocos %}
+        <div class="cartao">
+            <span class="cartao-rotulo">{{ b.titulo }}</span>
+            <strong class="cartao-valor">R$ {{ b.total|moeda }}</strong>
+            <span class="cartao-nota">
+                {{ b.quantidade }} nota(s) ·
+                {{ "%.1f"|format(b.total / grade.total * 100 if grade.total else 0) }}% do total
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="analise">
+        {# ---------- Slicers ---------- #}
+        <aside class="slicers">
+            <div class="slicer" data-campo="competencia">
+                <div class="slicer-topo">
+                    <span class="slicer-titulo">Competência</span>
+                    <button type="button" class="slicer-limpar" title="Limpar seleção">✕</button>
+                </div>
+                <div class="slicer-itens">
+                    {% set ns = namespace(ano_atual="") %}
+                    {% for c in opcoes.competencia %}
+                        {% set ano = c[3:] %}
+                        {% if ano != ns.ano_atual %}
+                            {% if ns.ano_atual %}</div>{% endif %}
+                            {% set ns.ano_atual = ano %}
+                            <div class="slicer-grupo">{{ ano }}</div>
+                            <div class="grade-meses-slicer">
+                        {% endif %}
+                        <label class="slicer-item mes {{ 'marcado' if c in filtros.competencia }}">
+                            <input type="checkbox" name="competencia" value="{{ c }}"
+                                   {{ "checked" if c in filtros.competencia }}>
+                            <span>{{ c[:2] }}</span>
+                        </label>
+                    {% endfor %}
+                    {% if ns.ano_atual %}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="slicer" data-campo="tipo_nota">
+                <div class="slicer-topo">
+                    <span class="slicer-titulo">Tipo de nota</span>
+                    <button type="button" class="slicer-limpar" title="Limpar seleção">✕</button>
+                </div>
+                <div class="slicer-itens">
+                    {% for t in opcoes.tipo_nota %}
+                    <label class="slicer-item {{ 'marcado' if t in filtros.tipo_nota }}">
+                        <input type="checkbox" name="tipo_nota" value="{{ t }}"
+                               {{ "checked" if t in filtros.tipo_nota }}>
+                        <span>{{ t }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="slicer" data-campo="categoria_primaria_efetiva">
+                <div class="slicer-topo">
+                    <span class="slicer-titulo">Categoria</span>
+                    <button type="button" class="slicer-limpar" title="Limpar seleção">✕</button>
+                </div>
+                <div class="slicer-itens">
+                    {% for c in opcoes.categoria_primaria_efetiva %}
+                    <label class="slicer-item {{ 'marcado' if c in filtros.categoria_primaria_efetiva }}">
+                        <input type="checkbox" name="categoria_primaria_efetiva" value="{{ c }}"
+                               {{ "checked" if c in filtros.categoria_primaria_efetiva }}>
+                        <span title="{{ c }}">{{ c }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </aside>
+
+        {# ---------- Grades ---------- #}
+        <div class="painel">
+            {% if not grade.blocos %}
+            <p class="aviso">Nenhuma nota no recorte selecionado.</p>
+            {% else %}
+                {% for b in grade.blocos %}
+                    {{ grade_bloco(b) }}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+    {# Reaproveita o comportamento de slicer do dashboard: o form tem o mesmo id. #}
+    <script src="{{ url_for('static', filename='js/analise.js') }}"></script>
+{% endblock %}

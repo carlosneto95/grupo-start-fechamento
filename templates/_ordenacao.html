@@ -1,0 +1,29 @@
+{# Cabeçalho de coluna ordenável — padrão de TODAS as tabelas do sistema.
+
+   Uso:
+     {% import "_ordenacao.html" as ord %}
+     {{ ord.th("despesas", "valor", "Valor", ordenar, direcao, args_atuais, "num") }}
+
+   Clicar ordena crescente; clicar de novo na mesma coluna inverte. Os filtros
+   atuais são preservados porque a macro reenvia args_atuais na URL.
+#}
+{% macro th(endpoint, coluna, rotulo, ordenar, direcao, args_atuais, classe="") %}
+    {% set nova_direcao = "desc" if (ordenar == coluna and direcao == "asc") else "asc" %}
+    <th class="{{ classe }} {{ 'ordenado' if ordenar == coluna }}">
+        <a href="{{ url_for(endpoint, **dict(args_atuais, ordenar=coluna, direcao=nova_direcao)) }}">
+            {{ rotulo }}{% if ordenar == coluna %} {{ "▲" if direcao == "asc" else "▼" }}{% endif %}
+        </a>
+    </th>
+{% endmacro %}
+
+{# Igual à macro `th`, mas para tabelas de resumo que usam parâmetros próprios
+   (ordenar_tabela/direcao_tabela), para não colidir com a ordenação da tabela
+   de lançamentos quando as duas convivem na mesma tela. #}
+{% macro th_tabela(endpoint, coluna, rotulo, ordenar, direcao, args_atuais, classe="") %}
+    {% set nova_direcao = "desc" if (ordenar == coluna and direcao == "asc") else "asc" %}
+    <th class="{{ classe }} {{ 'ordenado' if ordenar == coluna }}">
+        <a href="{{ url_for(endpoint, **dict(args_atuais, ordenar_tabela=coluna, direcao_tabela=nova_direcao)) }}">
+            {{ rotulo }}{% if ordenar == coluna %} {{ "▲" if direcao == "asc" else "▼" }}{% endif %}
+        </a>
+    </th>
+{% endmacro %}

@@ -1,0 +1,1213 @@
+/* =========================================================
+   Grupo Start — Fechamento
+   Interface densa de dados financeiros.
+
+   Princípios:
+   - Neutros levemente azulados, um acento (índigo) e duas cores
+     semânticas (receita/despesa). Cor só onde carrega significado.
+   - Superfícies chapadas com sombra sutil; a hierarquia vem do
+     contraste e do espaço, não de molduras pesadas.
+   - Densidade alta preservada: o ganho estético não pode custar
+     linhas visíveis por tela.
+   ========================================================= */
+
+:root {
+    /* Neutros — escala slate com toque de azul */
+    --tinta:         #0f172a;
+    --tinta-media:   #334155;
+    --tinta-suave:   #64748b;
+    --tinta-fraca:   #94a3b8;
+
+    --fundo:         #f1f5f9;
+    --superficie:    #ffffff;
+    --superficie-2:  #f8fafc;
+    --borda:         #e2e8f0;
+    --borda-forte:   #cbd5e1;
+
+    /* Acento */
+    --acento:        #4f46e5;
+    --acento-vivo:   #6366f1;
+    --acento-fraco:  #eef2ff;
+    --acento-borda:  #c7d2fe;
+    --acento-forte:  #4338ca;
+
+    /* Semânticas */
+    --receita:       #059669;
+    --receita-fraco: #ecfdf5;
+    --receita-borda: #a7f3d0;
+    --despesa:       #e11d48;
+    --despesa-fraco: #fff1f2;
+    --despesa-borda: #fecdd3;
+
+    --raio:    10px;
+    --raio-m:  7px;
+    --raio-p:  5px;
+
+    /* Sombras em camadas: uma linha de contato e um halo difuso. */
+    --sombra:      0 1px 2px rgba(15, 23, 42, .04),
+                   0 1px 3px rgba(15, 23, 42, .06);
+    --sombra-media: 0 2px 4px rgba(15, 23, 42, .04),
+                    0 4px 12px rgba(15, 23, 42, .07);
+    --sombra-alta: 0 4px 8px rgba(15, 23, 42, .06),
+                   0 12px 28px rgba(15, 23, 42, .14);
+
+    --anima: 130ms cubic-bezier(.4, 0, .2, 1);
+
+    /* Escala compacta: a tela é densa de números e o objetivo é caber
+       mais linha por vez sem virar um amontoado. */
+    --esp-1: 2px;
+    --esp-2: 5px;
+    --esp-3: 7px;
+    --esp-4: 10px;
+    --esp-5: 13px;
+    --esp-6: 20px;
+}
+
+* { box-sizing: border-box; }
+
+input[type="checkbox"] {
+    width: 12px; height: 12px; margin: 0 3px 0 0;
+    vertical-align: middle; accent-color: var(--acento); cursor: pointer;
+}
+
+body {
+    margin: 0;
+    background: var(--fundo);
+    color: var(--tinta);
+    font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system,
+                 BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 11.5px;
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* Barras de rolagem discretas — aparecem muito nesta interface. */
+* { scrollbar-width: thin; scrollbar-color: var(--borda-forte) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+    background: var(--borda-forte);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--tinta-fraca); background-clip: content-box; }
+
+:focus-visible { outline: 2px solid var(--acento-vivo); outline-offset: 1px; border-radius: 3px; }
+
+/* ---------- Topo e navegação ---------- */
+
+.topo {
+    background: rgba(255, 255, 255, .85);
+    backdrop-filter: saturate(1.6) blur(10px);
+    border-bottom: 1px solid var(--borda);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.topo-interno {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 var(--esp-5);
+    display: flex;
+    align-items: center;
+    gap: var(--esp-6);
+    min-height: 40px;
+}
+
+.marca {
+    font-weight: 650;
+    font-size: 13px;
+    color: var(--tinta);
+    text-decoration: none;
+    white-space: nowrap;
+    letter-spacing: -.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Marca d'água em forma de ponto de acento antes do nome. */
+.marca::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 2px;
+    background: linear-gradient(135deg, var(--acento-vivo), var(--acento-forte));
+}
+
+.marca span { color: var(--tinta-fraca); font-weight: 400; }
+
+.navegacao { display: flex; gap: 1px; flex-wrap: wrap; }
+
+.navegacao a {
+    position: relative;
+    padding: 4px 10px;
+    border-radius: var(--raio-p);
+    color: var(--tinta-suave);
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color var(--anima), background var(--anima);
+}
+
+.navegacao a:hover { background: var(--superficie-2); color: var(--tinta); }
+
+.navegacao a.ativo { color: var(--acento-forte); background: var(--acento-fraco); }
+
+/* ---------- Estrutura ---------- */
+
+.conteudo { max-width: 1800px; margin: 0 auto; padding: var(--esp-4) var(--esp-5) var(--esp-6); }
+
+.cabecalho-pagina { margin-bottom: var(--esp-4); }
+
+.cabecalho-pagina h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -.015em;
+}
+
+h2 { font-size: 12.5px; font-weight: 650; margin: 0 0 var(--esp-3); letter-spacing: -.01em; }
+
+.legenda { color: var(--tinta-suave); font-size: 11px; margin: var(--esp-2) 0; }
+
+.aviso {
+    color: #9f1239;
+    background: var(--despesa-fraco);
+    border: 1px solid var(--despesa-borda);
+    border-radius: var(--raio-m);
+    padding: var(--esp-4);
+}
+
+/* ---------- Superfícies ---------- */
+
+.filtros, .cartao, .tabela-caixa, .slicer, .bloco-extracao, #painel-progresso {
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+}
+
+.filtros {
+    padding: var(--esp-4);
+    display: flex;
+    gap: var(--esp-4);
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: var(--esp-4);
+}
+
+.filtros > label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--tinta-suave);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* ---------- Controles ---------- */
+
+select, input[type="text"], input[type="date"], input[type="search"] {
+    font: inherit;
+    font-size: 11px;
+    padding: 4px 24px 4px 7px;
+    border: 1px solid var(--borda-forte);
+    border-radius: var(--raio-p);
+    background: var(--superficie);
+    color: var(--tinta);
+    max-width: 240px;
+    transition: border-color var(--anima), box-shadow var(--anima);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2364748b' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+}
+
+input[type="text"], input[type="date"], input[type="search"] { background-image: none; padding-right: 7px; }
+
+select:hover, input:hover { border-color: var(--tinta-fraca); }
+
+select:focus, input:focus {
+    outline: none;
+    border-color: var(--acento-vivo);
+    box-shadow: 0 0 0 3px var(--acento-fraco);
+}
+
+button {
+    font: inherit;
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--borda-forte);
+    background: var(--superficie);
+    color: var(--tinta-media);
+    border-radius: var(--raio-p);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background var(--anima), border-color var(--anima),
+                color var(--anima), box-shadow var(--anima);
+}
+
+button:hover { background: var(--superficie-2); border-color: var(--tinta-fraca); color: var(--tinta); }
+button:active { transform: translateY(.5px); }
+
+.filtros button[type="submit"], .botao-principal {
+    background: linear-gradient(180deg, var(--acento-vivo), var(--acento));
+    border-color: var(--acento-forte);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(79, 70, 229, .3);
+}
+
+.filtros button[type="submit"]:hover, .botao-principal:hover {
+    background: linear-gradient(180deg, var(--acento), var(--acento-forte));
+    border-color: var(--acento-forte);
+    color: #fff;
+}
+
+.botao-principal { padding: 6px 16px; font-size: 12px; font-weight: 600; }
+.botao-principal:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+
+/* ---------- Filtro de data em árvore ---------- */
+
+.filtro-data { position: relative; display: flex; flex-direction: column; }
+.filtro-data-toggle { white-space: nowrap; }
+
+.filtro-data-painel {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    z-index: 40;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra-alta);
+    padding: var(--esp-4);
+    max-height: 340px;
+    overflow-y: auto;
+    min-width: 230px;
+}
+
+.filtro-data-painel ul { list-style: none; margin: 0; padding-left: 16px; }
+.filtro-data-painel > ul.arvore-ano { padding-left: 0; }
+
+.linha-arvore { display: flex; align-items: center; gap: 3px; }
+.linha-arvore .opcao-checkbox { margin: 1px 0; }
+.opcao-checkbox { display: block; margin: 1px 0; font-size: 11px; cursor: pointer; }
+
+.expandir, .espaco-expandir { width: 15px; min-width: 15px; height: 15px; display: inline-block; }
+
+.expandir {
+    border: 1px solid var(--borda);
+    background: var(--superficie-2);
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    font-size: 11px;
+    color: var(--tinta-suave);
+    transition: all var(--anima);
+}
+
+.expandir:hover { background: var(--acento-fraco); color: var(--acento-forte); border-color: var(--acento-borda); }
+.filtro-data-fechar { margin-top: var(--esp-3); width: 100%; }
+
+/* ---------- Cartões de indicador ---------- */
+
+.cartoes { display: flex; gap: var(--esp-4); flex-wrap: wrap; margin-bottom: var(--esp-4); }
+
+.cartao {
+    position: relative;
+    padding: var(--esp-3) var(--esp-4) var(--esp-3) var(--esp-5);
+    min-width: 145px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+    transition: box-shadow var(--anima), transform var(--anima);
+}
+
+.cartao:hover { box-shadow: var(--sombra-media); }
+
+/* Faixa lateral colorida em vez de tingir o cartão inteiro: identifica a
+   natureza do número sem competir com o valor. */
+.cartao::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--borda-forte);
+}
+
+.cartao.positivo::before { background: linear-gradient(180deg, #34d399, var(--receita)); }
+.cartao.negativo::before { background: linear-gradient(180deg, #fb7185, var(--despesa)); }
+.cartao.destaque::before { background: linear-gradient(180deg, var(--acento-vivo), var(--acento-forte)); }
+
+.cartao-rotulo {
+    font-size: 9.5px;
+    color: var(--tinta-suave);
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+.cartao-valor {
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -.025em;
+    font-variant-numeric: tabular-nums;
+    color: var(--tinta);
+}
+
+.cartao-nota { font-size: 10px; color: var(--tinta-fraca); }
+
+.cartao.positivo .cartao-valor { color: var(--receita); }
+.cartao.negativo .cartao-valor { color: var(--despesa); }
+.cartao.destaque { background: linear-gradient(180deg, #fbfbff, var(--superficie)); border-color: var(--acento-borda); }
+.cartao.destaque .cartao-valor { color: var(--acento-forte); }
+
+/* ---------- Tabelas ---------- */
+
+.tabela-caixa { overflow: auto; max-height: 78vh; margin-bottom: var(--esp-5); }
+
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 11px; }
+
+th, td {
+    padding: 3px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--borda);
+}
+
+th {
+    background: var(--superficie-2);
+    font-weight: 650;
+    font-size: 9.5px;
+    color: var(--tinta-suave);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 1px solid var(--borda-forte);
+}
+
+tbody tr { transition: background var(--anima); }
+tbody tr:hover { background: var(--acento-fraco); }
+tbody tr:last-child td { border-bottom: none; }
+
+th a {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    transition: color var(--anima);
+}
+
+th a:hover { color: var(--acento); }
+
+th.ordenado { color: var(--acento-forte); background: var(--acento-fraco); }
+
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+tfoot th {
+    background: var(--superficie-2);
+    color: var(--tinta);
+    text-transform: none;
+    font-size: 11px;
+    font-weight: 650;
+    position: sticky;
+    bottom: 0;
+    top: auto;
+    border-top: 1px solid var(--borda-forte);
+    border-bottom: none;
+}
+
+tr.linha-desconsiderada { color: var(--tinta-fraca); }
+tr.linha-desconsiderada td:not(:first-child) { text-decoration: line-through; }
+
+/* ---------- Etiquetas e badges ---------- */
+
+.badge-manual {
+    display: inline-block;
+    font-size: 8.5px;
+    background: var(--acento-fraco);
+    color: var(--acento-forte);
+    border: 1px solid var(--acento-borda);
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-left: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    vertical-align: middle;
+}
+
+.etiqueta {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 20px;
+    background: var(--superficie-2);
+    color: var(--tinta-suave);
+    border: 1px solid var(--borda);
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.etiqueta.ok { background: var(--receita-fraco); color: #047857; border-color: var(--receita-borda); }
+.etiqueta.fora { background: var(--despesa-fraco); color: #be123c; border-color: var(--despesa-borda); }
+
+/* ---------- Barras de participação ---------- */
+
+.bloco-resumo { margin-bottom: var(--esp-6); }
+.tabela-resumo td:first-child { min-width: 200px; white-space: normal; }
+.col-barra { width: 190px; }
+
+.barra {
+    display: block;
+    height: 7px;
+    background: linear-gradient(90deg, var(--acento-vivo), var(--acento));
+    border-radius: 4px;
+    min-width: 2px;
+}
+
+.barra.receita { background: linear-gradient(90deg, #34d399, var(--receita)); }
+.barra.despesa { background: linear-gradient(90deg, #fb7185, var(--despesa)); }
+
+.valor-positivo { color: var(--receita); font-weight: 600; }
+.valor-negativo { color: var(--despesa); font-weight: 600; }
+
+/* ---------- Edição inline ---------- */
+
+.celula-editavel { cursor: pointer; transition: box-shadow var(--anima), background var(--anima); }
+
+.celula-editavel:hover {
+    background: var(--acento-fraco);
+    box-shadow: inset 0 0 0 1px var(--acento-borda);
+    border-radius: 3px;
+}
+
+.editor-inline {
+    width: 100%;
+    font: inherit;
+    font-size: 11px;
+    padding: 2px 5px;
+    border: 1px solid var(--acento-vivo);
+    border-radius: 4px;
+    box-shadow: 0 0 0 3px var(--acento-fraco);
+}
+
+.entrada-invalida { border-color: var(--despesa); box-shadow: 0 0 0 3px var(--despesa-fraco); }
+.erro-ao-salvar { background: var(--despesa-fraco); box-shadow: inset 0 0 0 1px var(--despesa-borda); }
+
+.col-marcadores {
+    max-width: 220px;
+    font-size: 10.5px;
+    color: var(--tinta-fraca);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Dashboard de análise ---------- */
+
+.barra-competencia {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--esp-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--esp-4);
+}
+
+.cartoes-compactos { margin-bottom: 0; }
+
+.analise {
+    display: grid;
+    /* Duas colunas: slicers fixos à esquerda, e à direita os quadros de
+       resultado com a despesa detalhada logo abaixo. Eram três colunas, mas
+       a tabela de eficiência tem 9 colunas e não cabia num terço da tela. */
+    grid-template-columns: 172px minmax(0, 1fr);
+    gap: var(--esp-4);
+    align-items: start;
+}
+
+.painel { min-width: 0; }
+
+.painel-titulo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--esp-3);
+    margin-bottom: var(--esp-3);
+    flex-wrap: wrap;
+}
+
+.painel-titulo h2 { margin: 0; }
+
+/* ---- Slicers ---- */
+
+.slicers { display: flex; flex-direction: column; gap: var(--esp-4); }
+.slicer { overflow: hidden; }
+
+.slicer-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--esp-2) var(--esp-3);
+    background: var(--superficie-2);
+    border-bottom: 1px solid var(--borda);
+}
+
+.slicer-titulo {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--tinta-suave);
+}
+
+.slicer-limpar {
+    padding: 0 5px;
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--tinta-fraca);
+    border-color: transparent;
+    background: transparent;
+}
+
+.slicer-limpar:hover { color: var(--despesa); background: var(--despesa-fraco); border-color: var(--despesa-borda); }
+
+.slicer-itens { max-height: 300px; overflow-y: auto; padding: 3px; }
+
+.slicer-item { display: block; cursor: pointer; }
+.slicer-item input { position: absolute; opacity: 0; pointer-events: none; }
+
+.slicer-item span {
+    display: block;
+    padding: 2px 7px;
+    border-radius: var(--raio-p);
+    font-size: 11px;
+    color: var(--tinta-media);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background var(--anima), color var(--anima);
+}
+
+.slicer-item:hover span { background: var(--superficie-2); color: var(--tinta); }
+
+.slicer-item.marcado span {
+    background: linear-gradient(180deg, var(--acento-vivo), var(--acento));
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(79, 70, 229, .25);
+}
+
+.slicer-grupo {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--tinta-fraca);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 5px 7px 2px;
+    border-top: 1px solid var(--borda);
+    margin-top: 2px;
+}
+
+.slicer-itens > .slicer-grupo:first-child { border-top: none; margin-top: 0; }
+
+.grade-meses-slicer {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    padding: 0 4px 3px;
+}
+
+.slicer-item.mes span { text-align: center; padding: 2px 0; font-variant-numeric: tabular-nums; }
+
+/* ---- Árvore de gastos ---- */
+
+.tabela-arvore td:first-child { white-space: nowrap; }
+
+.expandir-linha {
+    width: 14px; min-width: 14px; height: 14px;
+    padding: 0; margin-right: 6px;
+    font-size: 10px; line-height: 1;
+    border: 1px solid var(--borda);
+    background: var(--superficie);
+    color: var(--tinta-suave);
+    border-radius: 3px;
+    vertical-align: middle;
+    transition: all var(--anima);
+}
+
+.expandir-linha:disabled { visibility: hidden; }
+.expandir-linha:hover:not(:disabled) {
+    background: var(--acento-fraco);
+    color: var(--acento-forte);
+    border-color: var(--acento-borda);
+}
+
+.tabela-arvore .nivel-0 > td { background: var(--superficie-2); font-weight: 600; }
+.tabela-arvore .nivel-0:hover > td { background: var(--acento-fraco); }
+.tabela-arvore .nivel-2 > td { color: var(--tinta-suave); font-size: 10.5px; }
+
+/* ---------- Sincronização ---------- */
+
+.bloco-extracao { padding: var(--esp-5); max-width: 660px; }
+.bloco-extracao hr { border: none; border-top: 1px solid var(--borda); margin: var(--esp-5) 0; }
+.bloco-extracao h3 { margin: 0 0 var(--esp-2); font-size: 12.5px; font-weight: 650; }
+
+.bloco-extracao label {
+    display: inline-flex; flex-direction: column; gap: 3px;
+    margin-right: var(--esp-5); font-size: 10px; font-weight: 600;
+    color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .04em;
+}
+
+#painel-progresso { padding: var(--esp-5); margin-top: var(--esp-5); max-width: 660px; }
+
+progress {
+    width: 100%; height: 6px; appearance: none; border: none;
+    border-radius: 4px; overflow: hidden; background: var(--borda);
+}
+progress::-webkit-progress-bar { background: var(--borda); }
+progress::-webkit-progress-value {
+    background: linear-gradient(90deg, var(--acento-vivo), var(--acento));
+    border-radius: 4px;
+}
+progress::-moz-progress-bar { background: var(--acento); border-radius: 4px; }
+
+fieldset {
+    border: 1px solid var(--borda);
+    border-radius: var(--raio-m);
+    margin-bottom: var(--esp-4);
+    padding: var(--esp-3) var(--esp-4);
+}
+
+legend {
+    font-size: 9.5px; font-weight: 700; color: var(--tinta-suave);
+    padding: 0 var(--esp-2); text-transform: uppercase; letter-spacing: .05em;
+}
+
+#grade-meses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: var(--esp-3) 0; }
+
+/* ---------- Responsivo ---------- */
+
+@media (max-width: 1200px) {
+    .analise { grid-template-columns: 150px minmax(0, 1fr); }
+}
+
+@media (max-width: 820px) {
+    .topo-interno { flex-direction: column; align-items: flex-start; gap: var(--esp-2); padding: var(--esp-3); }
+    .conteudo { padding: var(--esp-3); }
+    .analise { grid-template-columns: 1fr; }
+    #grade-meses { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+}
+
+/* Campo de busca livre — mais largo que os selects, com ícone de lupa. */
+.campo-busca input {
+    min-width: 190px;
+    max-width: 260px;
+    padding-left: 24px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5L14 14'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 7px center;
+}
+
+.campo-busca input::-webkit-search-cancel-button { cursor: pointer; }
+
+/* ---------- Filtro de coluna (estilo AutoFiltro do Excel) ---------- */
+
+.barra-ferramentas {
+    display: flex;
+    align-items: center;
+    gap: var(--esp-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--esp-4);
+}
+
+.barra-ferramentas .cartoes { margin-bottom: 0; margin-left: auto; }
+
+.limpar-filtros {
+    font-size: 11px;
+    color: var(--despesa);
+    text-decoration: none;
+    padding: 3px 8px;
+    border: 1px solid var(--despesa-borda);
+    background: var(--despesa-fraco);
+    border-radius: var(--raio-p);
+    white-space: nowrap;
+}
+
+.limpar-filtros:hover { background: #ffe4e6; }
+
+/* O cabeçalho passa a ter rótulo + funil lado a lado. */
+.th-conteudo { display: flex; align-items: center; gap: 3px; justify-content: space-between; }
+/* Coluna numérica: rótulo encostado à direita, mas o funil continua sendo o
+   último elemento — invertê-lo fazia o funil do Valor parecer o do Cliente. */
+.num .th-conteudo { justify-content: flex-end; gap: 3px; }
+
+.th-rotulo { color: inherit; text-decoration: none; white-space: nowrap; }
+a.th-rotulo:hover { color: var(--acento); }
+
+th.filtrado { background: var(--acento-fraco); color: var(--acento-forte); }
+
+.filtro-coluna { position: relative; display: inline-flex; }
+
+.filtro-coluna-botao {
+    /* Alvo generoso: o funil desenhado tem 9px, clicar nele seria sofrimento. */
+    padding: 4px 6px;
+    border: none;
+    background: transparent;
+    color: var(--tinta-fraca);
+    line-height: 0;
+    border-radius: 3px;
+}
+
+.filtro-coluna-botao:hover { background: var(--acento-fraco); color: var(--acento); }
+th.filtrado .filtro-coluna-botao { color: var(--acento-forte); }
+
+.filtro-coluna-painel {
+    /* Fixo, e nao absoluto: a caixa da tabela tem overflow:auto e encolhe junto
+       com o resultado do filtro, entao um painel absoluto era recortado por ela
+       — com poucas linhas na tela, sumia quase inteiro. Fixo escapa de qualquer
+       ancestral com overflow; quem calcula topo/esquerda e o JS (posicionar). */
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 60;
+    width: 290px;
+    background: var(--superficie);
+    border: 1px solid var(--borda-forte);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra-alta);
+    padding: var(--esp-3);
+    /* O cabeçalho é sticky e maiúsculo; o painel volta ao texto normal. */
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    color: var(--tinta);
+}
+
+.filtro-coluna-busca { width: 100%; max-width: none; margin-bottom: var(--esp-2); }
+
+.filtro-coluna-lista {
+    max-height: 210px;
+    overflow-y: auto;
+    border: 1px solid var(--borda);
+    border-radius: var(--raio-p);
+    padding: 2px;
+    background: var(--superficie-2);
+}
+
+.filtro-coluna-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.filtro-coluna-item:hover { background: var(--acento-fraco); }
+.filtro-coluna-item span { overflow: hidden; text-overflow: ellipsis; }
+
+.filtro-coluna-item.destaque {
+    font-weight: 600;
+    padding: 3px 5px;
+    margin-bottom: 3px;
+    border-bottom: 1px solid var(--borda);
+    border-radius: 0;
+}
+
+.filtro-coluna-aviso {
+    padding: 6px 5px;
+    font-size: 10.5px;
+    color: var(--tinta-fraca);
+    text-align: center;
+}
+
+.filtro-coluna-aviso.erro { color: var(--despesa); }
+
+.filtro-coluna-acoes {
+    display: flex;
+    gap: var(--esp-2);
+    margin-top: var(--esp-3);
+    justify-content: flex-end;
+}
+
+.filtro-coluna-acoes .botao-principal { padding: 4px 12px; font-size: 11px; }
+
+/* Falha ao salvar a marcação: destaque temporário, sem diálogo bloqueante. */
+.linha-com-erro > td { background: var(--despesa-fraco) !important; }
+
+.aviso-linha {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 9.5px;
+    color: var(--despesa);
+    white-space: nowrap;
+}
+
+/* ---------- Árvore Ano > Mês > Dia dentro do filtro de coluna ---------- */
+
+.arvore-filtro, .arvore-filtro ul.ramo {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Recuo por nível: o filho alinha sob o rótulo do pai, não sob o botão +. */
+.arvore-filtro ul.ramo { padding-left: 14px; }
+
+.linha-arvore { display: flex; align-items: center; gap: 2px; }
+.linha-arvore .filtro-coluna-item { flex: 1; min-width: 0; }
+
+/* Botão +/− e o espaço reservado para quem não tem filhos, para os rótulos
+   de níveis irmãos ficarem alinhados. */
+.expandir, .espaco-expandir {
+    flex: none;
+    width: 13px;
+    height: 13px;
+    line-height: 1;
+}
+
+.expandir {
+    padding: 0;
+    border: 1px solid var(--borda-forte);
+    border-radius: 2px;
+    background: var(--superficie);
+    color: var(--tinta-fraca);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.expandir:hover { border-color: var(--acento); color: var(--acento); }
+
+.espaco-expandir { display: inline-block; }
+
+/* ---------- Coluna Considerar: estado por extenso, clicável ---------- */
+
+.col-considerar { white-space: nowrap; }
+
+.alternar-considerar {
+    padding: 0 5px;
+    border: 1px solid transparent;
+    border-radius: var(--raio-p);
+    background: transparent;
+    font: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 15px;
+    cursor: pointer;
+    transition: background var(--anima), border-color var(--anima);
+}
+
+.alternar-considerar.sim { color: var(--receita); }
+.alternar-considerar.nao { color: var(--tinta-fraca); }
+
+.alternar-considerar.sim:hover {
+    background: var(--receita-fraco);
+    border-color: var(--receita-borda);
+}
+
+.alternar-considerar.nao:hover {
+    background: var(--despesa-fraco);
+    border-color: var(--despesa-borda);
+    color: var(--despesa);
+}
+
+.alternar-considerar:disabled { opacity: .5; cursor: wait; }
+
+/* ---------- Slicer de competência compacto ---------- */
+
+/* 6 meses por linha: o ano inteiro cabe em 2 linhas em vez de 3. */
+.grade-meses-slicer { grid-template-columns: repeat(6, 1fr); }
+
+.slicer[data-campo="competencia"] .slicer-item.mes {
+    padding: 1px 0;
+    font-size: 10px;
+    justify-content: center;
+}
+
+/* A caixa da competência não precisa da mesma altura das outras: os meses são
+   uma grade densa, não uma lista de nomes longos. */
+.slicer[data-campo="competencia"] .slicer-itens { max-height: 168px; }
+.slicer[data-campo="competencia"] .slicer-grupo { font-size: 9.5px; padding: 3px 0 1px; }
+
+/* ---------- Quadros de resultado (Total / Vendas / Serviços) ---------- */
+
+.painel-blocos {
+    display: flex;
+    flex-direction: column;
+    gap: var(--esp-3);
+    overflow-y: auto;
+}
+
+.bloco-resultado {
+    border: 1px solid var(--borda);
+    border-radius: var(--raio-m);
+    background: var(--superficie);
+    overflow: hidden;
+}
+
+/* Faixa de titulo do quadro. Nao e mais botao: os quadros ficam sempre abertos. */
+.bloco-topo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--esp-3);
+    padding: 5px 9px;
+    background: var(--superficie-2);
+    border-bottom: 1px solid var(--borda);
+}
+
+.bloco-topo h2 { margin: 0; font-size: 12px; }
+.bloco-topo .legenda { margin: 0; font-size: 9.5px; }
+
+/* A linha do rateio não é uma categoria do Tiny: o tom mais claro avisa. */
+.linha-rateio > td { background: var(--acento-fraco); font-style: italic; }
+
+/* Rodapé do quadro Total: a linha TOTAL vem numa tabela própria para ficar
+   separada visualmente das linhas de bloco, sem virar mais um <tr> igual. */
+.tabela-total-geral { margin-top: -1px; }
+.tabela-total-geral th { background: var(--tinta); color: #fff; border-color: var(--tinta); }
+
+.nota-rateio {
+    margin: 0;
+    padding: 4px 8px;
+    border-left: 2px solid var(--acento-borda);
+    background: var(--acento-fraco);
+    border-radius: var(--raio-p);
+}
+
+
+/* ============================================================
+   Passe de estética — dashboard, tabela de eficiência e refino
+   ============================================================ */
+
+/* ---- Dashboard: os slicers acompanham a rolagem ---- */
+
+/* Os slicers acompanham a rolagem: com a árvore de gastos agora embaixo, a
+   página ficou longa e sem isso o filtro sumiria da tela. */
+.slicers {
+    position: sticky;
+    top: var(--esp-3);
+    align-self: start;
+    max-height: calc(100vh - 76px);
+    overflow-y: auto;
+    padding-right: 3px;
+}
+
+/* Dentro do painel fixo, cada slicer devolve o espaço que sobra: a lista de
+   empresas tem 3 itens e não precisa da mesma altura da de subcategorias. */
+.slicers .slicer-itens { max-height: none; }
+.slicers .slicer[data-campo="categoria_primaria"] .slicer-itens,
+.slicers .slicer[data-campo="subcategoria"] .slicer-itens { max-height: 170px; overflow-y: auto; }
+
+/* Quadros de resultado e árvore de gastos empilhados na mesma coluna. */
+.coluna-analise {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--esp-4);
+}
+
+.painel-arvore .tabela-caixa { max-height: 60vh; margin-bottom: 0; }
+
+/* ---- Tabela de eficiência: 9 colunas precisam de hierarquia ---- */
+
+.tabela-eficiencia { font-variant-numeric: tabular-nums; }
+
+/* Cabeçalho de grupo por cima dos rótulos: agrupa Desempenho, Custo e a
+   composição, para o olho não ler 9 colunas soltas. */
+.tabela-eficiencia .linha-grupo th {
+    padding: 2px 8px 1px;
+    font-size: 8.5px;
+    letter-spacing: .09em;
+    color: var(--tinta-fraca);
+    background: var(--superficie-2);
+    border-bottom: none;
+    text-align: center;
+}
+
+.tabela-eficiencia .linha-grupo th:first-child { background: transparent; }
+
+/* Faixas de fundo separam os três grupos sem precisar de bordas grossas. */
+.tabela-eficiencia .col-destaque { background: color-mix(in srgb, var(--acento-fraco) 55%, transparent); }
+.tabela-eficiencia .col-custo    { background: color-mix(in srgb, var(--superficie-2) 90%, transparent); }
+.tabela-eficiencia .col-rateio   { background: color-mix(in srgb, var(--superficie-2) 55%, transparent); }
+
+.tabela-eficiencia td.forte { font-weight: 650; }
+
+/* Colunas rateadas são cálculo nosso, não dado do Tiny: tom mais leve. */
+.tabela-eficiencia td.suave { color: var(--tinta-suave); }
+
+.tabela-eficiencia .cel-nome { font-weight: 600; }
+.tabela-eficiencia .cel-margem { font-weight: 650; }
+.tabela-eficiencia .vazio { color: var(--tinta-fraca); }
+
+/* Categoria sem receita: custo puro, não contrato ruim. */
+.tabela-eficiencia .linha-sem-receita td { color: var(--tinta-fraca); }
+.tabela-eficiencia .linha-sem-receita .cel-nome { font-weight: 500; font-style: italic; }
+
+.tabela-eficiencia tfoot th { border-top: 2px solid var(--borda-forte); }
+
+/* ---- Nota explicativa do rateio ---- */
+
+.nota-rateio {
+    margin: 0;
+    padding: var(--esp-3) var(--esp-4);
+    border: 1px solid var(--borda);
+    border-left: 3px solid var(--acento-borda);
+    border-radius: var(--raio-m);
+    background: var(--superficie);
+    font-size: 10.5px;
+    color: var(--tinta-suave);
+}
+
+.nota-rateio strong {
+    display: block;
+    margin-bottom: var(--esp-2);
+    color: var(--tinta-media);
+    font-size: 11px;
+}
+
+.nota-rateio ul { margin: 0; padding-left: 15px; }
+.nota-rateio li { margin-bottom: 2px; }
+.nota-rateio li b { color: var(--tinta-media); font-weight: 650; }
+.nota-rateio p { margin: var(--esp-2) 0 0; }
+
+/* ---- Refino geral ---- */
+
+/* Números alinhados por dígito em toda tabela: sem isso as colunas de valor
+   "dançam" de uma linha para outra. */
+table { font-variant-numeric: tabular-nums; }
+
+/* Zebra sutil: dá linha de leitura em tabela larga sem competir com o hover. */
+tbody tr:nth-child(even) > td {
+    background-image: linear-gradient(color-mix(in srgb, var(--superficie-2) 60%, transparent) 0 100%);
+}
+tbody tr:hover > td { background-image: none; }
+
+/* O negativo já tem cor; não precisa também de peso — senão a tabela inteira
+   de resultado vira um bloco vermelho em negrito. */
+.valor-negativo { color: var(--despesa); font-weight: 600; }
+.valor-positivo { color: var(--receita); font-weight: 600; }
+
+/* Cabeçalho fixo em tabela alta, para o rótulo não sumir ao rolar. */
+.tabela-caixa thead th { position: sticky; top: 0; z-index: 2; }
+.tabela-eficiencia .linha-grupo th { top: 0; }
+.tabela-eficiencia thead tr:last-child th { top: 15px; }
+
+/* Painéis com borda mais discreta e respiro interno consistente. */
+.painel-titulo { align-items: baseline; gap: var(--esp-3); margin-bottom: var(--esp-3); }
+.painel-titulo h2 { margin: 0; }
+.painel-titulo .legenda { margin: 0; font-size: 10px; }
+
+/* Slicer: item marcado com marca visível, não só fundo. */
+.slicer-item.marcado { font-weight: 600; }
+.slicer-titulo { letter-spacing: .06em; }
+
+/* Foco visível e consistente em tudo que é clicável. */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--acento-vivo);
+    outline-offset: 1px;
+}
+
+
+/* Larguras fixas para os quadros empilhados alinharem coluna a coluna — como
+   sao tabelas separadas, sem isso cada uma se dimensiona pelo proprio conteudo
+   e o rodape TOTAL nao bate com a coluna de cima.
+   As larguras vao no <colgroup>: com table-layout fixed quem manda seria a
+   primeira linha do cabecalho, e ela tem colspan (a faixa de grupo). */
+.tabela-eficiencia { table-layout: fixed; }
+.tabela-eficiencia col:nth-child(1) { width: 17%; }
+.tabela-eficiencia col:nth-child(2) { width: 11.5%; }
+.tabela-eficiencia col:nth-child(3) { width: 6.5%; }
+.tabela-eficiencia col:nth-child(4) { width: 11.5%; }
+.tabela-eficiencia col:nth-child(5) { width: 11.5%; }
+.tabela-eficiencia col:nth-child(6) { width: 11.5%; }
+.tabela-eficiencia col:nth-child(7) { width: 10%; }
+.tabela-eficiencia col:nth-child(8) { width: 10.5%; }
+.tabela-eficiencia col:nth-child(9) { width: 10%; }
+
+.tabela-eficiencia .cel-nome {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* O quadro com as tabelas empilhadas não rola sozinho: quem rola é a página. */
+.painel-blocos .tabela-caixa { max-height: none; overflow: visible; margin-bottom: 0; }
+
+/* ==========================================================================
+   Análise de Receitas
+   Grade categoria × mês com valor cheio (centavos). As categorias descem na
+   vertical; as competências correm na horizontal.
+   ========================================================================== */
+
+.grade-caixa { max-height: 72vh; margin-bottom: var(--esp-6); }
+
+.grade-receita { font-size: 11px; width: auto; min-width: 100%; }
+.grade-receita th, .grade-receita td { padding: 3px 8px; white-space: nowrap; }
+
+.grade-receita thead th {
+    position: sticky; top: 0; z-index: 2;
+    font-size: 9.5px; letter-spacing: .03em; line-height: 1.35;
+}
+/* Mês por extenso abaixo do MM/AAAA: o número é a chave, o nome é a leitura. */
+.grade-receita thead .nome-mes {
+    display: block; font-weight: 400; text-transform: none;
+    color: var(--tinta-fraca); font-size: 9px;
+}
+
+/* Categoria congelada à esquerda: com 22 linhas e vários meses, perder o nome
+   da categoria ao rolar para o lado torna a grade ilegível. */
+.grade-receita .col-categoria {
+    position: sticky; left: 0; z-index: 3;
+    background: var(--superficie);
+    text-align: left;
+    min-width: 168px; max-width: 230px;
+    overflow: hidden; text-overflow: ellipsis;
+    font-weight: 500;
+}
+.grade-receita thead .col-categoria { z-index: 4; background: var(--superficie-2); }
+.grade-receita tbody tr:hover .col-categoria { background: var(--acento-fraco); }
+
+/* Listra clara: com muitas colunas de número, o olho perde a linha no meio da
+   travessia horizontal. */
+.grade-receita tbody tr:nth-child(even) td { background: var(--superficie-2); }
+.grade-receita tbody tr:nth-child(even) .col-categoria { background: #f3f6fa; }
+.grade-receita tbody tr:hover td { background: var(--acento-fraco); }
+
+.grade-receita .col-total {
+    font-weight: 600;
+    border-left: 1px solid var(--borda-forte);
+    background: var(--superficie-2);
+}
+.grade-receita tbody tr:nth-child(even) .col-total { background: #f3f6fa; }
+
+.grade-receita .celula-zero { color: var(--borda-forte); }
+.grade-receita .percentual { color: var(--tinta-suave); }
+
+/* O rodapé NÃO é sticky de propósito: são duas linhas (Total e % do bloco), e
+   duas linhas grudadas em bottom:0 se sobrepõem. */
+.grade-receita tfoot td {
+    background: var(--acento-fraco);
+    font-weight: 600;
+    border-top: 2px solid var(--acento-borda);
+}
+.grade-receita tfoot .col-categoria { background: var(--acento-fraco); }
+.grade-receita tfoot .linha-percentual td {
+    font-weight: 400; font-size: 10px;
+    color: var(--tinta-suave); border-top: 1px solid var(--acento-borda);
+}

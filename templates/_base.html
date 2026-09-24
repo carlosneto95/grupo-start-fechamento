@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block titulo %}Grupo Start{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="topo">
+        <div class="topo-interno">
+            <a class="marca" href="{{ url_for('despesas') }}">
+                Grupo Start <span>Fechamento</span>
+            </a>
+            <nav class="navegacao">
+                {# 'ativo' marca em qual seção o usuário está. #}
+                <a href="{{ url_for('dashboard') }}"
+                   class="{{ 'ativo' if secao == 'dashboard' }}">Resultados</a>
+                <a href="{{ url_for('despesas') }}"
+                   class="{{ 'ativo' if secao == 'despesas' }}">Despesas</a>
+                <a href="{{ url_for('receitas_vendas') }}"
+                   class="{{ 'ativo' if secao == 'receitas_vendas' }}">Receitas Vendas</a>
+                <a href="{{ url_for('receitas_servicos') }}"
+                   class="{{ 'ativo' if secao == 'receitas_servicos' }}">Receitas Serviços</a>
+                <a href="{{ url_for('analise_receitas') }}"
+                   class="{{ 'ativo' if secao == 'analise_receitas' }}">Análise Receitas</a>
+                <a href="{{ url_for('extracao') }}"
+                   class="{{ 'ativo' if secao == 'extracao' }}">Sincronizar</a>
+                <a href="{{ url_for('configuracoes_exclusoes') }}"
+                   class="{{ 'ativo' if secao == 'config' }}">Configurações</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="conteudo">
+        <div class="cabecalho-pagina">
+            <h1>{% block cabecalho %}{% endblock %}</h1>
+            {% block subtitulo %}{% endblock %}
+        </div>
+        {% block corpo %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

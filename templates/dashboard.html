@@ -1,0 +1,344 @@
+{% extends "_base.html" %}
+{% set secao = "dashboard" %}
+{% import "_ordenacao.html" as ord %}
+
+{% block titulo %}Dashboard — Grupo Start{% endblock %}
+{% block cabecalho %}Análise de resultado{% endblock %}
+
+{% block corpo %}
+<form method="get" id="form-analise">
+    {# A competência continua no formato de árvore Ano > Mês, igual às outras telas. #}
+    <div class="barra-competencia">
+        <div class="cartoes cartoes-compactos">
+            <div class="cartao positivo">
+                <span class="cartao-rotulo">Receita</span>
+                <strong class="cartao-valor">R$ {{ blocos.total.receita|moeda }}</strong>
+                <span class="cartao-nota">{{ quantidade_notas }} nota(s)</span>
+            </div>
+            {# Custo total, e não só despesa: é o que a tabela usa para calcular
+               resultado e margem. Mostrar a despesa crua aqui faria o cartão
+               contradizer o rodapé da tabela pelo valor do imposto. #}
+            <div class="cartao negativo">
+                <span class="cartao-rotulo">Custo total</span>
+                <strong class="cartao-valor">R$ {{ blocos.total.custo_total|moeda }}</strong>
+                <span class="cartao-nota">
+                    despesa {{ blocos.total.despesa|moeda }} + imposto {{ blocos.total.imposto|moeda }}
+                </span>
+            </div>
+            <div class="cartao destaque">
+                <span class="cartao-rotulo">Resultado</span>
+                <strong class="cartao-valor">R$ {{ blocos.total.resultado|moeda }}</strong>
+                <span class="cartao-nota">
+                    margem {% if blocos.total.margem is none %}—{% else %}{{ "%.1f"|format(blocos.total.margem) }}%{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="analise">
+        {# ---------- Coluna 1: slicers ---------- #}
+        <aside class="slicers">
+            {% macro slicer(campo, titulo) %}
+            <div class="slicer" data-campo="{{ campo }}">
+                <div class="slicer-topo">
+                    <span class="slicer-titulo">{{ titulo }}</span>
+                    <span class="slicer-acoes">
+                        <button type="button" class="slicer-limpar" title="Limpar seleção">✕</button>
+                    </span>
+                </div>
+                <div class="slicer-itens">
+                    {% for v in opcoes[campo] %}
+                    <label class="slicer-item {{ 'marcado' if v in filtros[campo] }}">
+                        <input type="checkbox" name="{{ campo }}" value="{{ v }}"
+                               {{ "checked" if v in filtros[campo] }}>
+                        <span>{{ v }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endmacro %}
+
+            {# Competência primeiro: é o recorte principal do fechamento.
+               Agrupada por ano porque são dezenas de meses. #}
+            <div class="slicer" data-campo="competencia">
+                <div class="slicer-topo">
+                    <span class="slicer-titulo">Competência</span>
+                    <span class="slicer-acoes">
+                        <button type="button" class="slicer-limpar" title="Limpar seleção">✕</button>
+                    </span>
+                </div>
+                {# Meses em grade de 6: o rótulo é só o número, então o ano
+                   inteiro cabe em 2 linhas. Com 4 anos no banco, isso é a
+                   diferença entre 12 linhas de slicer e 8. #}
+                <div class="slicer-itens">
+                    {% set ns = namespace(ano_atual="") %}
+                    {% for c in opcoes.competencia %}
+                        {% set ano = c[3:] %}
+                        {% if ano != ns.ano_atual %}
+                            {% if ns.ano_atual %}</div>{% endif %}
+                            {% set ns.ano_atual = ano %}
+                            <div class="slicer-grupo">{{ ano }}</div>
+                            <div class="grade-meses-slicer">
+                        {% endif %}
+                        <label class="slicer-item mes {{ 'marcado' if c in filtros.competencia }}">
+                            <input type="checkbox" name="competencia" value="{{ c }}"
+                                   {{ "checked" if c in filtros.competencia }}>
+                            <span>{{ c[:2] }}</span>
+                        </label>
+                    {% endfor %}
+                    {% if ns.ano_atual %}</div>{% endif %}
+                </div>
+            </div>
+
+            {{ slicer("empresa", "Empresa") }}
+            {{ slicer("categoria_primaria", "Categoria") }}
+            {{ slicer("subcategoria", "Subcategoria") }}
+        </aside>
+
+        {# Quadros de resultado e despesa detalhada dividem a mesma coluna:
+           empilhados num container próprio, e não como duas células do grid,
+           senão a altura do painel de slicers abriria um buraco entre eles. #}
+        <div class="coluna-analise">
+        {# ---------- Resultado: os três quadros ---------- #}
+        <section class="painel painel-blocos">
+            {# Macro única para os quadros: a tabela é a mesma, muda o conteúdo.
+               `resumo=True` troca a coluna Categoria por bloco, tira a ordenação
+               (são 3 linhas) e some com o rodapé, que seria repetição.
+
+               Ordem das colunas pedida: o que interessa primeiro (resultado e
+               margem), depois o custo total, e só então a abertura dele. #}
+            {% macro tabela(linhas, totais, resumo=False) %}
+            <div class="tabela-caixa">
+            <table class="tabela-resumo tabela-eficiencia">
+                <colgroup>
+                    <col><col class="col-destaque"><col class="col-destaque">
+                    <col class="col-custo"><col><col>
+                    <col class="col-rateio"><col class="col-rateio"><col class="col-rateio">
+                </colgroup>
+                <thead>
+                    {% set a = dict(args_atuais) %}
+                    {% set _ = a.pop("ordenar_tabela", None) %}
+                    {% set _ = a.pop("direcao_tabela", None) %}
+                    <tr class="linha-grupo">
+                        <th></th>
+                        <th class="num" colspan="2">Desempenho</th>
+                        <th class="num">Custo</th>
+                        <th class="num" colspan="5">Composição do resultado</th>
+                    </tr>
+                    <tr>
+                        {% if resumo %}
+                        <th>Bloco</th>
+                        <th class="num">Resultado</th>
+                        <th class="num">Margem</th>
+                        <th class="num">Custo total</th>
+                        <th class="num">Receita</th>
+                        <th class="num">Despesa</th>
+                        <th class="num">Impostos</th>
+                        <th class="num">Adm I</th>
+                        <th class="num">Adm II</th>
+                        {% else %}
+                        {{ ord.th_tabela("dashboard", "nome", "Categoria", ordenar_tabela, direcao_tabela, a) }}
+                        {{ ord.th_tabela("dashboard", "resultado", "Resultado", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "margem", "Margem", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "custo_total", "Custo total", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "receita", "Receita", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "despesa", "Despesa", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "imposto", "Impostos", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "adm1", "Adm I", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard", "adm2", "Adm II", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in linhas %}
+                    {# Sem receita a categoria não é contrato: é custo puro, e o
+                       rateio proporcional à receita lhe dá zero. Marcada para
+                       não parecer contrato com desempenho péssimo. #}
+                    <tr class="{{ 'linha-sem-receita' if not c.receita }}">
+                        <td class="cel-nome">{{ c.nome }}</td>
+                        <td class="num {{ 'valor-positivo' if c.resultado >= 0 else 'valor-negativo' }}">
+                            {{ c.resultado|moeda }}
+                        </td>
+                        <td class="num cel-margem">
+                            {% if c.margem is none %}<span class="vazio">—</span>
+                            {% else %}{{ "%.0f"|format(c.margem) }}%{% endif %}
+                        </td>
+                        <td class="num forte">{{ c.custo_total|moeda }}</td>
+                        <td class="num">{{ c.receita|moeda }}</td>
+                        <td class="num">{{ c.despesa|moeda }}</td>
+                        {% for campo in [c.imposto, c.adm1, c.adm2] %}
+                        <td class="num suave">
+                            {% if campo is none %}<span class="vazio">—</span>
+                            {% else %}{{ campo|moeda }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if not resumo %}
+                <tfoot>
+                    <tr>
+                        <th>Total do bloco</th>
+                        <th class="num">{{ totais.resultado|moeda }}</th>
+                        <th class="num">
+                            {% if totais.margem is none %}—{% else %}{{ "%.0f"|format(totais.margem) }}%{% endif %}
+                        </th>
+                        <th class="num">{{ totais.custo_total|moeda }}</th>
+                        <th class="num">{{ totais.receita|moeda }}</th>
+                        <th class="num">{{ totais.despesa|moeda }}</th>
+                        {% for campo in [totais.imposto, totais.adm1, totais.adm2] %}
+                        <th class="num">{% if campo is none %}—{% else %}{{ campo|moeda }}{% endif %}</th>
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+            </div>
+            {% endmacro %}
+
+            {# Os três quadros ficam sempre abertos: a comparação entre Vendas e
+               Serviços é o motivo de eles existirem, e recolher um deles obrigava
+               a lembrar o que estava no outro. #}
+            {% macro bloco(id, titulo, legenda) %}
+            <div class="bloco-resultado" data-bloco="{{ id }}">
+                <div class="bloco-topo">
+                    <h2>{{ titulo }}</h2>
+                    {% if legenda %}<span class="legenda">{{ legenda }}</span>{% endif %}
+                </div>
+                <div class="bloco-corpo">{{ caller() }}</div>
+            </div>
+            {% endmacro %}
+
+            {% call bloco("total", "Total", "Vendas + Serviços") %}
+                {{ tabela(blocos.resumo, blocos.total, resumo=True) }}
+                <table class="tabela-resumo tabela-eficiencia tabela-total-geral">
+                    <colgroup>
+                        <col><col class="col-destaque"><col class="col-destaque">
+                        <col class="col-custo"><col><col>
+                        <col class="col-rateio"><col class="col-rateio"><col class="col-rateio">
+                    </colgroup>
+                    <tfoot>
+                        <tr>
+                            <th>TOTAL</th>
+                            <th class="num">{{ blocos.total.resultado|moeda }}</th>
+                            <th class="num">
+                                {% if blocos.total.margem is none %}—{% else %}{{ "%.0f"|format(blocos.total.margem) }}%{% endif %}
+                            </th>
+                            <th class="num">{{ blocos.total.custo_total|moeda }}</th>
+                            <th class="num">{{ blocos.total.receita|moeda }}</th>
+                            <th class="num">{{ blocos.total.despesa|moeda }}</th>
+                            <th class="num">{{ blocos.total.imposto|moeda }}</th>
+                            <th class="num">{{ blocos.total.adm1|moeda }}</th>
+                            <th class="num">{{ blocos.total.adm2|moeda }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            {% endcall %}
+
+            {% call bloco("vendas", "Vendas",
+                          "Comércio, Indústria, DCA, Projetos, Adm MSV, Imposto") %}
+                {{ tabela(blocos.vendas.linhas, blocos.vendas.totais) }}
+            {% endcall %}
+
+            {% call bloco("servicos", "Serviços", "Demais categorias") %}
+                {{ tabela(blocos.servicos.linhas, blocos.servicos.totais) }}
+            {% endcall %}
+
+            {% if blocos.sem_classificacao.linhas %}
+            {% call bloco("sem-classificacao", "Sem classificação",
+                          "corrigir a categoria no Tiny") %}
+                {{ tabela(blocos.sem_classificacao.linhas, blocos.sem_classificacao.totais) }}
+            {% endcall %}
+            {% endif %}
+
+            {% if blocos.rateio.adm_geral %}
+            <div class="nota-rateio">
+                <strong>Como as três últimas colunas são calculadas</strong>
+                <ul>
+                    <li><b>Impostos</b> — alíquota sobre a receita da própria categoria:
+                        14% em Vendas, 10% em Serviços.</li>
+                    <li><b>Adm I</b> — ADM GERAL de R$ {{ blocos.rateio.adm_geral|moeda }},
+                        dividido 10% Vendas (R$ {{ blocos.rateio.por_bloco["Vendas"].adm1|moeda }})
+                        e 90% Serviços (R$ {{ blocos.rateio.por_bloco["Serviços"].adm1|moeda }}),
+                        e dentro de cada bloco rateado entre as categorias na proporção da receita.</li>
+                    <li><b>Adm II</b> — administrativo do próprio centro, mesmo rateio:
+                        ADM MSV em Vendas (R$ {{ blocos.rateio.por_bloco["Vendas"].adm2|moeda }})
+                        e ADM START GTF em Serviços
+                        (R$ {{ blocos.rateio.por_bloco["Serviços"].adm2|moeda }}).</li>
+                </ul>
+                <p class="legenda">Categoria sem receita recebe rateio zero e aparece
+                   esmaecida — é custo sem contrato por trás, não contrato com
+                   desempenho ruim.</p>
+            </div>
+            {% endif %}
+        </section>
+        {# ---------- Abaixo dos quadros: despesa detalhada ---------- #}
+        <section class="painel painel-arvore">
+            <div class="painel-titulo">
+                <h2>Despesa detalhada</h2>
+                <span class="legenda">Categoria › Subcategoria › Fornecedor</span>
+            </div>
+            <div class="tabela-caixa">
+            <table class="tabela-arvore">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th class="num">Valor</th>
+                        <th class="num">%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Percorre os 3 níveis; cada linha guarda o nível e o pai para
+                       o JS saber o que esconder/mostrar ao recolher. #}
+                    {% for a in arvore.itens %}
+                        {% set id_a = "n%d"|format(loop.index) %}
+                        <tr class="nivel-0" data-id="{{ id_a }}">
+                            <td>
+                                <button type="button" class="expandir-linha"
+                                        {{ "disabled" if not a.filhos }}>{{ "+" if a.filhos else "" }}</button>
+                                <strong>{{ a.nome }}</strong>
+                            </td>
+                            <td class="num">{{ a.valor|moeda }}</td>
+                            <td class="num">{{ "%.0f"|format(a.percentual) }}%</td>
+                        </tr>
+                        {% for b in a.filhos %}
+                            {% set id_b = "%s-%d"|format(id_a, loop.index) %}
+                            <tr class="nivel-1" data-id="{{ id_b }}" data-pai="{{ id_a }}" hidden>
+                                <td style="padding-left: 26px">
+                                    <button type="button" class="expandir-linha"
+                                            {{ "disabled" if not b.filhos }}>{{ "+" if b.filhos else "" }}</button>
+                                    {{ b.nome }}
+                                </td>
+                                <td class="num">{{ b.valor|moeda }}</td>
+                                <td class="num">{{ "%.0f"|format(b.percentual) }}%</td>
+                            </tr>
+                            {% for c in b.filhos %}
+                            <tr class="nivel-2" data-pai="{{ id_b }}" hidden>
+                                <td style="padding-left: 62px">{{ c.nome }}</td>
+                                <td class="num">{{ c.valor|moeda }}</td>
+                                <td class="num">{{ "%.0f"|format(c.percentual) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th>Total</th>
+                        <th class="num">{{ arvore.total|moeda }}</th>
+                        <th class="num">100%</th>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+        </section>
+
+    </div>
+</form>
+{% endblock %}
+
+{# O dashboard não marca linha nem tem árvore de datas: só os slicers e a
+   árvore de gastos, que vivem em analise.js. #}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/analise.js') }}"></script>
+{% endblock %}

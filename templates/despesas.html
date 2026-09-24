@@ -1,0 +1,90 @@
+{% extends "_base.html" %}
+{% set secao = "despesas" %}
+{% import "_filtro_coluna.html" as col %}
+
+{% block titulo %}Despesas — Grupo Start{% endblock %}
+{% block cabecalho %}Despesas — contas a pagar{% endblock %}
+
+{% block corpo %}
+{# O formulário envolve a tabela inteira: os filtros vivem nos cabeçalhos e
+   precisam ser enviados junto com a ordenação. #}
+<form method="get" id="form-tabela">
+    <div class="barra-ferramentas">
+        {% if filtros_coluna %}
+        <a class="limpar-filtros" href="{{ url_for('despesas') }}">
+            Limpar {{ filtros_coluna|length }} filtro(s)
+        </a>
+        {% endif %}
+
+        <div class="cartoes cartoes-compactos">
+            <div class="cartao destaque">
+                <span class="cartao-rotulo">Total considerado</span>
+                <strong class="cartao-valor" id="total-considerado" data-total="{{ total_considerado }}">
+                    R$ {{ total_considerado|moeda }}
+                </strong>
+                <span class="cartao-nota">
+                    {{ contas|selectattr("considerar_efetivo")|list|length }} de {{ contas|length }} lançamentos
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {# Ordenação viaja em campo escondido para não se perder ao aplicar filtro. #}
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+    <div class="tabela-caixa">
+    <table id="tabela-contas" data-marcar="/despesas/marcar">
+        <thead>
+            <tr>
+                {{ col.th("despesas", "despesas", "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "fornecedor", "Fornecedor", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "data_emissao", "Emissão", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "data_vencimento", "Vencimento", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "data_liquidacao", "Liquidação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "competencia", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "valor", "Valor", ordenar, direcao, args_atuais, filtros_coluna, "num", True) }}
+                {{ col.th("despesas", "despesas", "categoria_primaria", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "subcategoria", "Subcategoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas", "despesas", "situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in contas %}
+            <tr data-empresa="{{ c.empresa }}" data-id="{{ c.id }}" data-valor="{{ c.valor or 0 }}"
+                class="{{ 'linha-desconsiderada' if not c.considerar_efetivo }}">
+                {# Texto clicável no lugar da caixa: o estado fica legível sem
+                   depender de enxergar um tique de 11px. #}
+                <td class="col-considerar">
+                    <button type="button"
+                            class="alternar-considerar {{ 'sim' if c.considerar_efetivo else 'nao' }}"
+                            aria-pressed="{{ 'true' if c.considerar_efetivo else 'false' }}">
+                        {{ "Considerar" if c.considerar_efetivo else "Desconsiderar" }}
+                    </button>
+                    {% if c.considerar_manual is not none %}
+                    <span class="badge-manual" title="Ajustado manualmente">manual</span>
+                    {% endif %}
+                </td>
+                <td>{{ c.empresa }}</td>
+                <td>{{ c.fornecedor }}</td>
+                <td>{{ c.data_emissao or "" }}</td>
+                <td>{{ c.data_vencimento or "" }}</td>
+                <td>{{ c.data_liquidacao or "" }}</td>
+                <td>{{ c.competencia or "" }}</td>
+                <td class="num">{{ c.valor|moeda }}</td>
+                <td>{{ c.categoria_primaria or "" }}</td>
+                <td>{{ c.subcategoria or "" }}</td>
+                <td><span class="etiqueta">{{ c.situacao or "" }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/considerar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/filtro-coluna.js') }}"></script>
+{% endblock %}

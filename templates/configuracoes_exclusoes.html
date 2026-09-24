@@ -1,0 +1,39 @@
+{% extends "_base.html" %}
+{% set secao = "config" %}
+
+{% block titulo %}Configurações — Grupo Start{% endblock %}
+{% block cabecalho %}Categorias sempre desconsideradas{% endblock %}
+
+{% block corpo %}
+    <p>
+        Marque as categorias/subcategorias que devem ser <strong>sempre</strong> excluídas do
+        total (ex: aportes entre empresas, movimentações que não são despesa real).
+        Isso vale como padrão — você ainda pode ajustar linha a linha na tela de Contas a Pagar.
+    </p>
+
+    <form method="post">
+        <fieldset>
+            <legend>Categoria primária</legend>
+            {% for c in categorias_primarias %}
+            <label class="opcao-checkbox">
+                <input type="checkbox" name="categoria_primaria" value="{{ c }}"
+                       {{ "checked" if c in categorias_excluidas }}>
+                {{ c }}
+            </label>
+            {% endfor %}
+        </fieldset>
+
+        <fieldset>
+            <legend>Subcategoria</legend>
+            {% for s in subcategorias %}
+            <label class="opcao-checkbox">
+                <input type="checkbox" name="subcategoria" value="{{ s }}"
+                       {{ "checked" if s in subcategorias_excluidas }}>
+                {{ s }}
+            </label>
+            {% endfor %}
+        </fieldset>
+
+        <button type="submit">Salvar</button>
+    </form>
+{% endblock %}

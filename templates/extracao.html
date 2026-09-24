@@ -1,0 +1,64 @@
+{% extends "_base.html" %}
+{% set secao = "extracao" %}
+
+{% block titulo %}Sincronizar — Grupo Start{% endblock %}
+{% block cabecalho %}Sincronizar com o Tiny{% endblock %}
+
+{% block corpo %}
+    {% if not empresas %}
+    <p class="aviso">Nenhuma empresa configurada no arquivo <code>.env</code>.</p>
+    {% else %}
+
+    <div class="bloco-extracao">
+        <label>Empresa
+            <select id="empresa">
+                {% for e in empresas %}
+                <option value="{{ e.key }}">{{ e.nome }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Ano
+            <select id="ano">
+                {% for a in anos %}
+                <option value="{{ a }}" {{ "selected" if a == ano_atual }}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <hr>
+
+        <h3>Sincronizar</h3>
+        <p class="legenda">
+            Varre o ano no Tiny e traz para o banco tudo que for <strong>novo</strong> ou que
+            tiver <strong>mudado</strong> (valor, saldo, situação, datas). O que já está
+            igual não é rebuscado, então costuma ser rápido. Use no dia a dia.
+        </p>
+        <button type="button" id="btn-sincronizar" class="botao-principal">Sincronizar</button>
+
+        <hr>
+
+        <h3>Forçar atualização completa</h3>
+        <p class="legenda">
+            Rebusca <strong>todas</strong> as contas do ano, uma a uma. Mais lento (pode passar
+            de 20 minutos), mas é o único jeito de pegar alteração que não aparece na listagem —
+            por exemplo, se mudaram só a <strong>competência</strong> ou a categoria no ERP.
+            No fim, mostra o que mudou.
+        </p>
+        <button type="button" id="btn-forcar">Forçar atualização completa</button>
+    </div>
+
+    <div id="painel-progresso" hidden>
+        <h2>Progresso</h2>
+        <p id="progresso-etapa"></p>
+        <progress id="barra" value="0" max="100"></progress>
+        <p id="progresso-texto"></p>
+        <div id="resultado"></div>
+    </div>
+
+        {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/extracao.js') }}"></script>
+{% endblock %}

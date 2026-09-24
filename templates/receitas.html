@@ -1,0 +1,119 @@
+{% extends "_base.html" %}
+{% import "_filtro_coluna.html" as col %}
+
+{# `tabela`, `rota` e `titulo` vem da view: as telas de Vendas e de Servicos
+   sao a mesma listagem com o tipo de nota fixo. A coluna "Tipo" nao aparece
+   aqui porque seria a mesma palavra em todas as linhas. #}
+{% block titulo %}{{ titulo }} — Grupo Start{% endblock %}
+{% block cabecalho %}{{ titulo }} — notas fiscais emitidas{% endblock %}
+
+{% block corpo %}
+<form method="get" id="form-tabela">
+    <div class="barra-ferramentas">
+        {% if filtros_coluna %}
+        <a class="limpar-filtros" href="{{ url_for(rota) }}">
+            Limpar {{ filtros_coluna|length }} filtro(s)
+        </a>
+        {% endif %}
+
+        <div class="cartoes cartoes-compactos">
+            <div class="cartao destaque">
+                <span class="cartao-rotulo">Receita faturada</span>
+                <strong class="cartao-valor" id="total-considerado"
+                        data-total="{{ total_receita }}">R$ {{ total_receita|moeda }}</strong>
+                <span class="cartao-nota">{{ quantidade }} nota(s)</span>
+            </div>
+            {% if excluidas %}
+            <div class="cartao">
+                <span class="cartao-rotulo">Fora do faturamento</span>
+                <strong class="cartao-valor">R$ {{ total_excluido|moeda }}</strong>
+                <span class="cartao-nota">{{ excluidas }} cancelada(s)/rejeitada(s)/pendente(s)</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+    <p class="legenda">
+        Clique na <strong>competência</strong> ou na <strong>categoria</strong> para editar.
+        O valor original do Tiny fica guardado — a edição é sua e sobrevive à próxima
+        sincronização. Deixe em branco para voltar ao valor do ERP.
+    </p>
+
+    <datalist id="categorias-sugeridas">
+        {% for c in categorias_sugeridas %}<option value="{{ c }}">{% endfor %}
+    </datalist>
+
+    <div class="tabela-caixa">
+    <table id="tabela-notas" data-marcar="/receitas/marcar">
+        <thead>
+            <tr>
+                {{ col.th(tabela, tabela, "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "numero", "Nº", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "data_emissao", "Emissão", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "cliente_nome", "Cliente", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "valor", "Valor", ordenar, direcao, args_atuais, filtros_coluna, "num", True) }}
+                {{ col.th(tabela, tabela, "descricao_situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "competencia_efetiva", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(tabela, tabela, "categoria_primaria_efetiva", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                <th>Marcadores</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in notas %}
+            <tr data-empresa="{{ n.empresa }}" data-tipo="{{ n.tipo_nota }}" data-id="{{ n.id }}"
+                data-valor="{{ n.valor or 0 }}"
+                class="{{ 'linha-desconsiderada' if not n.considerar_efetivo }}">
+                {# Cancelada/rejeitada/pendente já nasce desconsiderada pela
+                   situação; o clique aqui é o override manual por cima disso. #}
+                <td class="col-considerar">
+                    <button type="button"
+                            class="alternar-considerar {{ 'sim' if n.considerar_efetivo else 'nao' }}"
+                            aria-pressed="{{ 'true' if n.considerar_efetivo else 'false' }}">
+                        {{ "Considerar" if n.considerar_efetivo else "Desconsiderar" }}
+                    </button>
+                    {% if n.considerar_manual is not none %}
+                    <span class="badge-manual" title="Ajustado manualmente">manual</span>
+                    {% endif %}
+                </td>
+                <td>{{ n.empresa }}</td>
+                <td>{{ n.numero or "" }}</td>
+                <td>{{ n.data_emissao or "" }}</td>
+                <td>{{ (n.cliente_nome or "")[:38] }}</td>
+                <td class="num">{{ n.valor|moeda }}</td>
+                <td>
+                    {# A etiqueta segue a situação do ERP, não o override: ela
+                       informa o que o Tiny diz da nota. #}
+                    <span class="etiqueta {{ 'ok' if n.e_receita else 'fora' }}">
+                        {{ n.descricao_situacao or "" }}
+                    </span>
+                </td>
+                <td class="celula-editavel" data-campo="competencia">
+                    <span class="valor">{{ n.competencia_efetiva or "—" }}</span>
+                    {% if n.competencia_manual %}<span class="badge-manual"
+                        title="Original do Tiny: {{ n.competencia or 'vazio' }}">editado</span>{% endif %}
+                </td>
+                {# Só a categoria primária, tanto para exibir quanto para editar:
+                   a subcategoria não é usada nesta coluna. #}
+                <td class="celula-editavel" data-campo="categoria">
+                    <span class="valor">{{ n.categoria_primaria_efetiva or "—" }}</span>
+                    {% if n.categoria_manual %}<span class="badge-manual"
+                        title="Original do Tiny: {{ n.categoria or 'vazio' }}">editado</span>{% endif %}
+                </td>
+                <td class="col-marcadores" title="{{ n.marcadores or '' }}">{{ n.marcadores or "" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/considerar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/receitas.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/filtro-coluna.js') }}"></script>
+{% endblock %}

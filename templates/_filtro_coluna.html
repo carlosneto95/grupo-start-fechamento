@@ -1,0 +1,62 @@
+{# Cabeçalho de coluna com ordenação + filtro estilo Excel.
+
+   Uso:
+     {% import "_filtro_coluna.html" as col %}
+     {{ col.th("despesas", "despesas", "fornecedor", "Fornecedor",
+               ordenar, direcao, args_atuais, filtros_coluna) }}
+
+   Parâmetros:
+     endpoint  — rota para onde a ordenação aponta
+     tabela    — "despesas" ou "receitas" (a API usa para saber onde buscar)
+     coluna    — nome da coluna (é também o nome do parâmetro na URL)
+     ordenavel — passe False para colunas que só filtram
+#}
+{% macro th(endpoint, tabela, coluna, rotulo, ordenar, direcao, args_atuais,
+            filtros_coluna, classe="", ordenavel=True) %}
+    {% set selecionados = filtros_coluna.get(coluna, []) %}
+    {% set nova_direcao = "desc" if (ordenar == coluna and direcao == "asc") else "asc" %}
+    <th class="{{ classe }} {{ 'ordenado' if ordenar == coluna }} {{ 'filtrado' if selecionados }}">
+        <div class="th-conteudo">
+            {% if ordenavel %}
+            <a class="th-rotulo"
+               href="{{ url_for(endpoint, **dict(args_atuais, ordenar=coluna, direcao=nova_direcao)) }}">
+                {{ rotulo }}{% if ordenar == coluna %} {{ "▲" if direcao == "asc" else "▼" }}{% endif %}
+            </a>
+            {% else %}
+            <span class="th-rotulo">{{ rotulo }}</span>
+            {% endif %}
+
+            <span class="filtro-coluna" data-coluna="{{ coluna }}" data-tabela="{{ tabela }}">
+                <button type="button" class="filtro-coluna-botao"
+                        title="{{ 'Filtrando por %d valor(es)'|format(selecionados|length)
+                                 if selecionados else 'Filtrar' }}">
+                    {# Funil: preenchido quando há filtro ativo nesta coluna. #}
+                    <svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true">
+                        <path d="M1 2h10L7 6.5V11L5 9.5V6.5z"
+                              fill="{{ 'currentColor' if selecionados else 'none' }}"
+                              stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <div class="filtro-coluna-painel" hidden>
+                    <input type="search" class="filtro-coluna-busca"
+                           placeholder="Pesquisar…" autocomplete="off">
+                    <label class="filtro-coluna-item destaque">
+                        <input type="checkbox" class="filtro-coluna-todos">
+                        <span>(Selecionar tudo)</span>
+                    </label>
+                    <div class="filtro-coluna-lista"></div>
+                    <div class="filtro-coluna-acoes">
+                        <button type="button" class="filtro-coluna-limpar">Limpar</button>
+                        <button type="button" class="filtro-coluna-aplicar botao-principal">Aplicar</button>
+                    </div>
+                </div>
+
+                {# Seleção vigente: viaja no envio do formulário. #}
+                {% for v in selecionados %}
+                <input type="hidden" name="{{ coluna }}" value="{{ v }}" class="filtro-coluna-atual">
+                {% endfor %}
+            </span>
+        </div>
+    </th>
+{% endmacro %}
