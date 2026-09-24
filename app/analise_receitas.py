@@ -17,6 +17,7 @@ na conta é de quem chama, como em `app/resumos.py`.
 """
 from __future__ import annotations
 
+from app.dinheiro import ZERO
 from app.resumos import SEM_CATEGORIA
 
 # Blocos da tela, na ordem em que aparecem. A chave é o `tipo_nota` do banco.
@@ -63,7 +64,7 @@ def _bloco(notas: list[dict], competencias: list[str], titulo: str) -> dict:
         competencia = (nota.get("competencia_efetiva") or "").strip() or "—"
         if competencia not in indice:
             continue
-        serie = valores.setdefault(categoria, [0.0] * len(competencias))
+        serie = valores.setdefault(categoria, [ZERO] * len(competencias))
         conta = quantidades.setdefault(categoria, [0] * len(competencias))
         i = indice[competencia]
         serie[i] += nota.get("valor") or 0

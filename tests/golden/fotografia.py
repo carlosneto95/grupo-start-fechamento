@@ -19,6 +19,7 @@ ficam em tests/golden/esperado/, fora do git.
 from __future__ import annotations
 
 import shutil
+from decimal import Decimal
 import sqlite3
 import tempfile
 from contextlib import contextmanager
@@ -63,8 +64,11 @@ def _competencias_fechadas(conn: sqlite3.Connection, ate: str | None) -> list[st
 def _limpo(valor):
     """Converte para JSON. Float com 6 casas: guarda mais que o centavo para a
     comparação poder dizer "mudou 0,004" em vez de esconder na arredondada."""
-    if isinstance(valor, float):
-        return round(valor, 6)
+    # Decimal (dinheiro desde a Fase 1) e float comparam na mesma escala: a
+    # fotografia é de NÚMEROS, não de tipos — o golden da Fase 0 foi tirado
+    # com float e tem de continuar valendo como juiz.
+    if isinstance(valor, (float, Decimal)):
+        return round(float(valor), 6)
     if isinstance(valor, dict):
         return {str(k): _limpo(v) for k, v in valor.items()}
     if isinstance(valor, (list, tuple)):

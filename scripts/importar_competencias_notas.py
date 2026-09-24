@@ -27,7 +27,8 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app.db import get_conn, init_db
+from app import auditoria, db
+from app.db import fazer_backup, get_conn, init_db
 
 MESES = {
     "JANEIRO": 1, "FEVEREIRO": 2, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6,
@@ -111,8 +112,10 @@ def main():
         # escolheria uma das duas na sorte.
         banco: dict[tuple[str, str], list[dict]] = {}
         for r in conn.execute(
-            "SELECT id, empresa, numero, data_emissao, valor, competencia, "
-            "competencia_manual FROM notas WHERE tipo_nota = ?", (tipo,)
+            # Valor em reais a partir dos centavos (Fase 1): só para casar a
+            # linha da planilha com a nota e para o relatório impresso.
+            "SELECT id, empresa, numero, data_emissao, valor_centavos / 100.0 AS valor,"
+            " competencia, competencia_manual FROM notas WHERE tipo_nota = ?", (tipo,)
         ):
             banco.setdefault((r["empresa"], str(r["numero"])), []).append(dict(r))
 
@@ -178,14 +181,26 @@ def main():
                 if vigente == reg["__comp"]:
                     iguais += 1
                     continue
-                aplicar.append((nota["id"], reg["__comp"]))
+                aplicar.append((empresa, nota["id"], reg["__comp"], nota["competencia_manual"]))
                 mudancas.append((empresa, nf, vigente, reg["__comp"], nota["valor"]))
 
-        if not simular:
-            for id_nota, comp in aplicar:
+        if not simular and aplicar:
+            # Gravação em massa: backup verificado antes (regra do projeto).
+            conn.close()
+            fazer_backup(Path(db.DB_PATH), "antes_importar_competencias")
+            conn = get_conn()
+            for empresa_nota, id_nota, comp, anterior in aplicar:
+                # A empresa entra no WHERE: o id é da conta do Tiny de CADA
+                # empresa, e duas contas podem ter o mesmo id. Antes da Fase 1
+                # o filtro era só (id, tipo) e podia ajustar a nota errada.
                 conn.execute(
-                    "UPDATE notas SET competencia_manual=? WHERE id=? AND tipo_nota=?",
-                    (comp, id_nota, tipo),
+                    "UPDATE notas SET competencia_manual=?"
+                    " WHERE empresa=? AND id=? AND tipo_nota=?",
+                    (comp, empresa_nota, id_nota, tipo),
+                )
+                auditoria.registrar(
+                    conn, "importar_competencia", "nota", f"{tipo}:{id_nota}", empresa_nota,
+                    {"competencia_manual": anterior}, {"competencia_manual": comp},
                 )
             conn.commit()
     finally:

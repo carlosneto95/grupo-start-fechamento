@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 
 from app import auditoria
 from app.db import get_conn
+from app.dinheiro import para_centavos, para_reais
 from app.ordenacao import ordenar_linhas
 from app.visao import (FILTRO_SQL_NOTAS, SEM_VALOR, casa_data,
                        formatar_valor, rotulo_consideracao)
@@ -185,7 +186,9 @@ def upsert_notas(linhas: list[dict]) -> None:
     if not linhas:
         return
     agora = datetime.now(timezone.utc).isoformat()
-    placeholders = ", ".join(f":{c}" for c in COLUNAS)
+    # `valor` (reais, no código) é gravado como `valor_centavos` (banco).
+    colunas_banco = ["valor_centavos" if c == "valor" else c for c in COLUNAS]
+    placeholders = ", ".join(f":{c}" for c in colunas_banco)
     chaves = ("empresa", "tipo_nota", "id")
 
     def atualizacao(coluna: str) -> str:
@@ -198,10 +201,10 @@ def upsert_notas(linhas: list[dict]) -> None:
             return "competencia=COALESCE(excluded.competencia, notas.competencia)"
         return f"{coluna}=excluded.{coluna}"
 
-    set_clause = ", ".join(atualizacao(c) for c in COLUNAS if c not in chaves)
+    set_clause = ", ".join(atualizacao(c) for c in colunas_banco if c not in chaves)
 
     sql = f"""
-        INSERT INTO notas ({", ".join(COLUNAS)}, atualizado_em)
+        INSERT INTO notas ({", ".join(colunas_banco)}, atualizado_em)
         VALUES ({placeholders}, :atualizado_em)
         ON CONFLICT(empresa, tipo_nota, id)
         DO UPDATE SET {set_clause}, atualizado_em=excluded.atualizado_em
@@ -209,7 +212,8 @@ def upsert_notas(linhas: list[dict]) -> None:
     conn = get_conn()
     try:
         for linha in linhas:
-            dados = {c: linha.get(c) for c in COLUNAS}
+            dados = {c: linha.get(c) for c in COLUNAS if c != "valor"}
+            dados["valor_centavos"] = para_centavos(linha.get("valor"))
             dados["atualizado_em"] = agora
             conn.execute(sql, dados)
         conn.commit()
@@ -305,7 +309,10 @@ def _considerar_efetivo(linha: dict) -> bool:
 
 
 def _enriquecer(linha: dict) -> dict:
-    """Aplica a precedência do ajuste manual sobre o dado do ERP."""
+    """Aplica a precedência do ajuste manual sobre o dado do ERP, e traz o
+    valor do banco (centavos) para reais Decimal."""
+    if "valor_centavos" in linha:
+        linha["valor"] = para_reais(linha["valor_centavos"])
     linha["competencia_efetiva"] = linha.get("competencia_manual") or linha.get("competencia")
     categoria_efetiva = linha.get("categoria_manual") or linha.get("categoria")
     linha["categoria_efetiva"] = categoria_efetiva
@@ -324,7 +331,7 @@ def mapa_por_id(empresa: str) -> dict[tuple[str, str], dict]:
         linhas = conn.execute("SELECT * FROM notas WHERE empresa = ?", (empresa,)).fetchall()
     finally:
         conn.close()
-    return {(l["tipo_nota"], str(l["id"])): dict(l) for l in linhas}
+    return {(l["tipo_nota"], str(l["id"])): _enriquecer(dict(l)) for l in linhas}
 
 
 def listar_notas(filtros: dict | None = None, competencias: set[str] | None = None,

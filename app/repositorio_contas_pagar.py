@@ -12,6 +12,7 @@ from datetime import date, datetime, timezone
 
 from app import auditoria
 from app.db import get_conn
+from app.dinheiro import para_centavos, para_reais
 from app.ordenacao import ordenar_linhas
 from app.visao import (ANO_MINIMO, FILTRO_SQL_CONTAS, SEM_VALOR, casa_data,
                        formatar_valor, rotulo_consideracao)
@@ -22,6 +23,28 @@ COLUNAS = [
     "categoria_primaria", "subcategoria", "centro_custo", "forma_pagamento", "forma_pagamento_texto",
     "historico", "competencia",
 ]
+
+# Colunas monetárias: no banco em centavos (valor_centavos...), na linha lida
+# em reais Decimal (valor...). Ver app/dinheiro.py.
+MONETARIAS = ("valor", "saldo", "pago")
+
+
+def _para_banco(linha: dict) -> dict:
+    """Linha no formato do código (reais) -> parâmetros do INSERT (centavos)."""
+    dados = {c: linha.get(c) for c in COLUNAS if c not in MONETARIAS}
+    for c in MONETARIAS:
+        dados[f"{c}_centavos"] = para_centavos(linha.get(c))
+    return dados
+
+
+def _em_reais(linha: dict) -> dict:
+    """Linha lida do banco (centavos) -> linha do código, com `valor`, `saldo`
+    e `pago` em reais Decimal. As colunas *_centavos continuam na linha para
+    quem precisar somar inteiro."""
+    for c in MONETARIAS:
+        linha[c] = para_reais(linha.get(f"{c}_centavos"))
+    return linha
+
 
 COLUNAS_FILTRO_VALIDAS = {"empresa", "fornecedor", "categoria_primaria", "subcategoria", "situacao"}
 COLUNAS_DATA_FILTRAVEIS = {"data_emissao", "data_vencimento", "data_liquidacao"}
@@ -106,11 +129,16 @@ def upsert_contas(linhas: list[dict]) -> None:
         return
 
     agora = datetime.now(timezone.utc).isoformat()
-    placeholders = ", ".join(f":{c}" for c in COLUNAS)
-    set_clause = ", ".join(f"{c}=excluded.{c}" for c in COLUNAS if c not in ("empresa", "id"))
+    # Nomes de coluna do BANCO (com *_centavos), escritos no código — nunca
+    # vindos de fora; por isso a montagem com f-string é segura.
+    colunas_banco = list(_para_banco({}))
+    placeholders = ", ".join(f":{c}" for c in colunas_banco)
+    set_clause = ", ".join(
+        f"{c}=excluded.{c}" for c in colunas_banco if c not in ("empresa", "id")
+    )
 
     sql = f"""
-        INSERT INTO contas_pagar ({", ".join(COLUNAS)}, atualizado_em)
+        INSERT INTO contas_pagar ({", ".join(colunas_banco)}, atualizado_em)
         VALUES ({placeholders}, :atualizado_em)
         ON CONFLICT(empresa, id) DO UPDATE SET {set_clause}, atualizado_em=excluded.atualizado_em
     """
@@ -118,7 +146,7 @@ def upsert_contas(linhas: list[dict]) -> None:
     conn = get_conn()
     try:
         for linha in linhas:
-            dados = {c: linha.get(c) for c in COLUNAS}
+            dados = _para_banco(linha)
             dados["atualizado_em"] = agora
             conn.execute(sql, dados)
         conn.commit()
@@ -135,7 +163,7 @@ def mapa_por_id(empresa: str) -> dict[str, dict]:
         ).fetchall()
     finally:
         conn.close()
-    return {str(l["id"]): dict(l) for l in linhas}
+    return {str(l["id"]): _em_reais(dict(l)) for l in linhas}
 
 
 def definir_manual(empresa: str, id_conta: str, considerar: bool | None) -> bool:
@@ -288,7 +316,7 @@ def listar_contas(
 
     conn = get_conn()
     try:
-        linhas = [dict(r) for r in conn.execute(sql, parametros).fetchall()]
+        linhas = [_em_reais(dict(r)) for r in conn.execute(sql, parametros).fetchall()]
     finally:
         conn.close()
 

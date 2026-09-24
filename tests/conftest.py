@@ -26,6 +26,7 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 import app.db as db  # noqa: E402  (precisa do sys.path acima)
+from app.dinheiro import para_centavos  # noqa: E402
 
 # Redireciona já na coleta: qualquer import que chame init_db() cai aqui, nunca
 # em data/app.db. Cada teste que precisa de banco troca de novo por um próprio.
@@ -130,7 +131,14 @@ def gravar(caminho: Path, contas=(), notas=(), regras=()):
     conn = sqlite3.connect(caminho)
     try:
         for tabela, linhas in (("contas_pagar", contas), ("notas", notas)):
-            for linha in linhas:
+            # O mesmo helper serve ao esquema antigo (valor REAL, usado nos
+            # testes de migração) e ao atual (valor_centavos INTEGER).
+            existentes = {r[1] for r in conn.execute(f"PRAGMA table_info({tabela})")}
+            for original in linhas:
+                linha = dict(original)
+                for campo in ("valor", "saldo", "pago"):
+                    if f"{campo}_centavos" in existentes and campo in linha:
+                        linha[f"{campo}_centavos"] = para_centavos(linha.pop(campo))
                 colunas = ", ".join(linha)
                 marcadores = ", ".join(f":{c}" for c in linha)
                 conn.execute(f"INSERT INTO {tabela} ({colunas}) VALUES ({marcadores})", linha)
@@ -145,7 +153,7 @@ def banco(tmp_path, monkeypatch):
     """Banco vazio com o schema atual, isolado por teste."""
     caminho = tmp_path / "teste.db"
     monkeypatch.setattr(db, "DB_PATH", caminho)
-    db.init_db()
+    db.migrar(caminho, tmp_path / "backups")
     return caminho
 
 

@@ -31,6 +31,9 @@ correção na origem.
 """
 from __future__ import annotations
 
+from decimal import Decimal
+
+from app.dinheiro import ZERO, arredondar, como_decimal, ratear
 from app.resumos import SEM_CATEGORIA
 
 # Categorias do centro de custo de Vendas. O resto é Serviços.
@@ -59,10 +62,11 @@ SEM_CLASSIFICACAO = "Sem classificação"
 CATEGORIA_ADM_PROPRIA = {VENDAS: "ADM MSV", SERVICOS: "ADM START GTF"}
 
 # Divisão do ADM GERAL entre os centros, antes do rateio por categoria.
-FRACAO_ADM_GERAL = {VENDAS: 0.10, SERVICOS: 0.90}
+# Decimal a partir de TEXTO: Decimal(0.1) seria 0.1000000000000000055...
+FRACAO_ADM_GERAL = {VENDAS: Decimal("0.10"), SERVICOS: Decimal("0.90")}
 
 # Alíquota sobre a receita de cada categoria.
-ALIQUOTA = {VENDAS: 0.14, SERVICOS: 0.10}
+ALIQUOTA = {VENDAS: Decimal("0.14"), SERVICOS: Decimal("0.10")}
 
 # Colunas rateadas: ficam None (e não 0,00) onde o rateio não se aplica, para a
 # tela mostrar "—" em vez de um zero que pareceria cálculo feito.
@@ -82,9 +86,9 @@ def _classificar(categoria: str | None) -> str:
 
 
 def _linha(nome: str, rateia: bool = True) -> dict:
-    base = {"nome": nome, "receita": 0.0, "despesa": 0.0,
+    base = {"nome": nome, "receita": ZERO, "despesa": ZERO,
             "qtd_receita": 0, "qtd_despesa": 0}
-    base.update({campo: (0.0 if rateia else None) for campo in CAMPOS_RATEADOS})
+    base.update({campo: (ZERO if rateia else None) for campo in CAMPOS_RATEADOS})
     base["rateia"] = rateia
     return base
 
@@ -115,8 +119,8 @@ def separar(notas: list[dict], contas: list[dict]) -> dict:
     blocos: dict[str, dict[str, dict]] = {VENDAS: {}, SERVICOS: {}, SEM_CLASSIFICACAO: {}}
 
     # Fontes do rateio, acumuladas em vez de virar linha.
-    adm_geral = 0.0
-    adm_propria = {VENDAS: 0.0, SERVICOS: 0.0}
+    adm_geral = ZERO
+    adm_propria = {VENDAS: ZERO, SERVICOS: ZERO}
 
     def caixa(bloco: str, categoria: str | None) -> dict:
         nome = (categoria or "").strip() or SEM_CATEGORIA
@@ -129,7 +133,7 @@ def separar(notas: list[dict], contas: list[dict]) -> dict:
         # As categorias de Adm não têm receita hoje. Se passarem a ter, ela cai
         # em Serviços em vez de sumir — rateio de receita não foi combinado.
         linha = caixa(bloco or SERVICOS, categoria)
-        linha["receita"] += nota.get("valor") or 0
+        linha["receita"] += como_decimal(nota.get("valor"))
         linha["qtd_receita"] += 1
 
     # De qual bloco cada categoria de Adm II é a fonte ("ADM MSV" -> Vendas).
@@ -138,7 +142,7 @@ def separar(notas: list[dict], contas: list[dict]) -> dict:
     for conta in contas:
         categoria = conta.get("categoria_primaria")
         nome = (categoria or "").strip().upper()
-        valor = conta.get("valor") or 0
+        valor = como_decimal(conta.get("valor"))
 
         # As categorias de Adm alimentam as colunas rateadas em vez de virar
         # linha — como linha, o mesmo dinheiro apareceria duas vezes.
@@ -154,20 +158,30 @@ def separar(notas: list[dict], contas: list[dict]) -> dict:
     # ---- rateios -------------------------------------------------------
     rateio = {"adm_geral": adm_geral, "por_bloco": {}}
 
+    # 10% / 90% do ADM GERAL. Serviços fica com a DIFERENÇA, e não com 90%
+    # arredondado de novo: assim as duas cotas somam exatamente o ADM GERAL,
+    # sem centavo criado ou perdido no arredondamento.
+    cotas_adm1 = {VENDAS: arredondar(adm_geral * FRACAO_ADM_GERAL[VENDAS])}
+    cotas_adm1[SERVICOS] = adm_geral - cotas_adm1[VENDAS]
+
     for bloco in (VENDAS, SERVICOS):
-        linhas = blocos[bloco].values()
-        base_receita = sum(l["receita"] for l in linhas)
-        cota_adm1 = adm_geral * FRACAO_ADM_GERAL[bloco]
+        linhas = list(blocos[bloco].values())
+        base_receita = sum((l["receita"] for l in linhas), ZERO)
+        cota_adm1 = cotas_adm1[bloco]
         cota_adm2 = adm_propria[bloco]
         aliquota = ALIQUOTA[bloco]
 
-        for linha in linhas:
-            # Proporcional à receita: categoria sem receita recebe zero, e é
-            # assim que ela deve aparecer — custo puro, sem contrato por trás.
-            peso = (linha["receita"] / base_receita) if base_receita else 0.0
-            linha["imposto"] = linha["receita"] * aliquota
-            linha["adm1"] = cota_adm1 * peso
-            linha["adm2"] = cota_adm2 * peso
+        # Proporcional à receita: categoria sem receita recebe zero, e é
+        # assim que ela deve aparecer — custo puro, sem contrato por trás.
+        # ratear() arredonda cada parte ao centavo e põe o resíduo na linha de
+        # maior receita, para as partes somarem exatamente a cota.
+        pesos = [l["receita"] for l in linhas]
+        for linha, adm1, adm2 in zip(linhas, ratear(cota_adm1, pesos), ratear(cota_adm2, pesos)):
+            # Imposto arredondado POR LINHA (meio centavo sobe): é o valor que
+            # a linha mostra, e o total do bloco é a soma do que se vê.
+            linha["imposto"] = arredondar(linha["receita"] * aliquota)
+            linha["adm1"] = adm1
+            linha["adm2"] = adm2
 
         rateio["por_bloco"][bloco] = {
             "aliquota": aliquota,

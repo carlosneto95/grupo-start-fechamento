@@ -5,11 +5,14 @@ entra na conta é responsabilidade de quem chama, não daqui.
 """
 from __future__ import annotations
 
+from app.dinheiro import ZERO
+
 SEM_CATEGORIA = "(sem categoria)"
 
 
 def _acumular(destino: dict, chave: str, conta: dict) -> None:
-    linha = destino.setdefault(chave, {"valor": 0.0, "pago": 0.0, "quantidade": 0})
+    # Decimal: o valor chega do banco em reais exatos (app/dinheiro.py).
+    linha = destino.setdefault(chave, {"valor": ZERO, "pago": ZERO, "quantidade": 0})
     linha["valor"] += conta.get("valor") or 0
     linha["pago"] += conta.get("pago") or 0
     linha["quantidade"] += 1

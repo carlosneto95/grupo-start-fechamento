@@ -80,6 +80,7 @@ def _centavos(conn: sqlite3.Connection) -> None:
 MIGRACOES: list[tuple[int, str | None, object]] = [
     (1, "0001_esquema_inicial.sql", None),
     (2, "0002_integridade_auditoria.sql", None),
+    (3, None, _centavos),
 ]
 
 
@@ -174,5 +175,17 @@ def migrar(caminho: str | Path | None = None, pasta_backups: str | Path | None =
 
 
 def init_db() -> None:
-    """Nome antigo, mantido para os scripts: hoje é o mesmo que migrar()."""
+    """Entrada dos SCRIPTS de linha de comando: banco e pasta de backups vêm do
+    .env (GSF_BANCO, GSF_BACKUPS), como no app — antes os scripts gravavam
+    sempre em data/app.db, ignorando a configuração. Depois, migra.
+
+    Os testes NÃO usam esta função (ela leria o .env da máquina): chamam
+    `migrar(caminho)` com um banco temporário explícito."""
+    from app.configuracao import variaveis
+
+    v = variaveis()
+    configurar(
+        v.get("GSF_BANCO") or RAIZ / "data" / "app.db",
+        v.get("GSF_BACKUPS") or RAIZ / "backups",
+    )
     migrar()

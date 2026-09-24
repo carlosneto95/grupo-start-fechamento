@@ -27,7 +27,7 @@ sys.path.insert(0, str(RAIZ))
 # exatamente a mesma regra da tela sem passar pelo get_conn (que grava PRAGMA).
 from app.centros_de_custo import separar  # noqa: E402
 from app.receitas import _enriquecer  # noqa: E402
-from app.repositorio_contas_pagar import _considerar_efetivo  # noqa: E402
+from app.repositorio_contas_pagar import _considerar_efetivo, _em_reais  # noqa: E402
 from app.visao import ANO_MINIMO, formatar_valor  # noqa: E402
 
 BRT_OFFSET_H = -3  # horário de Brasília fixo (sem horário de verão desde 2019)
@@ -48,7 +48,8 @@ def _ano_mes(comp: str | None):
 def carregar(caminho: Path):
     conn = sqlite3.connect(f"file:{caminho.as_posix()}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
-    contas = [dict(r) for r in conn.execute("SELECT * FROM contas_pagar")]
+    # _em_reais: desde a Fase 1 o banco guarda centavos; a regra usa reais.
+    contas = [_em_reais(dict(r)) for r in conn.execute("SELECT * FROM contas_pagar")]
     notas = [_enriquecer(dict(r)) for r in conn.execute("SELECT * FROM notas")]
     regras: dict[str, list[str]] = {"categoria_primaria": [], "subcategoria": []}
     for r in conn.execute("SELECT tipo, valor FROM regras_exclusao"):
