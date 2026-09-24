@@ -9,7 +9,7 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 4.1 — Painel de pendências de dados · 24/09/2026 · aguardando validação
+## Fase 4.1 — Painel de pendências de dados · 24/09/2026 · validada pelo Neto e mesclada (PR #9)
 
 ### O que foi feito
 - **Tela Pendências** (menu, todos os perfis, dentro do escopo): o relatório de qualidade
