@@ -1,5 +1,7 @@
 """Receitas: telas de Vendas e de Serviços, ajuste manual e marcação."""
 
+import sqlite3
+
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 
 from app import paineis
@@ -38,13 +40,20 @@ def ajustar():
     """Edição manual de competência/categoria. O valor do ERP não é tocado —
     o ajuste vai para coluna própria."""
     d = request.get_json()
-    definir_ajuste(
-        d["empresa"],
-        d["tipo_nota"],
-        d["id"],
-        competencia=d.get("competencia"),
-        categoria=d.get("categoria"),
-    )
+    try:
+        existe = definir_ajuste(
+            d["empresa"],
+            d["tipo_nota"],
+            d["id"],
+            competencia=d.get("competencia"),
+            categoria=d.get("categoria"),
+        )
+    except sqlite3.IntegrityError:
+        # O CHECK do banco recusou o valor (ex.: competência 13/2026). Nada
+        # foi gravado; a tela mostra o aviso no próprio campo.
+        return jsonify({"ok": False, "erro": "valor inválido"}), 400
+    if not existe:
+        return jsonify({"ok": False, "erro": "nota não encontrada"}), 404
     return jsonify({"ok": True})
 
 
@@ -53,5 +62,6 @@ def marcar():
     """Override Considerar/Desconsiderar de uma nota. O dado do ERP não muda."""
     d = request.get_json()
     # considerar: true, false, ou null (volta ao padrão da situação da nota).
-    definir_marcacao(d["empresa"], d["tipo_nota"], d["id"], d["considerar"])
+    if not definir_marcacao(d["empresa"], d["tipo_nota"], d["id"], d["considerar"]):
+        return jsonify({"ok": False, "erro": "nota não encontrada"}), 404
     return jsonify({"ok": True})

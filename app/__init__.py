@@ -36,8 +36,9 @@ def criar_app(sobrescrever: dict | None = None) -> Flask:
 
     # O banco é um só por processo. Scripts e a thread de sincronização usam
     # app.db sem contexto de requisição, então o caminho fica no módulo.
-    db.configurar(app.config["CAMINHO_BANCO"])
-    db.init_db()
+    # Migrações pendentes são aplicadas aqui, com backup verificado antes.
+    db.configurar(app.config["CAMINHO_BANCO"], app.config["PASTA_BACKUPS"])
+    db.migrar()
 
     _registrar_filtros(app)
     _registrar_erros(app)

@@ -23,5 +23,6 @@ def contas_pagar_antigo():
 def marcar():
     dados = request.get_json()
     # considerar: true, false, ou null (volta para o padrão das regras).
-    definir_manual(dados["empresa"], dados["id"], dados["considerar"])
+    if not definir_manual(dados["empresa"], dados["id"], dados["considerar"]):
+        return jsonify({"ok": False, "erro": "conta não encontrada"}), 404
     return jsonify({"ok": True})

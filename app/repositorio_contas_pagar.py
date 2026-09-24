@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
+from app import auditoria
 from app.db import get_conn
 from app.ordenacao import ordenar_linhas
 from app.visao import (ANO_MINIMO, FILTRO_SQL_CONTAS, SEM_VALOR, casa_data,
@@ -137,15 +138,29 @@ def mapa_por_id(empresa: str) -> dict[str, dict]:
     return {str(l["id"]): dict(l) for l in linhas}
 
 
-def definir_manual(empresa: str, id_conta: str, considerar: bool | None) -> None:
+def definir_manual(empresa: str, id_conta: str, considerar: bool | None) -> bool:
+    """Grava o override Considerar/Desconsiderar da conta, com auditoria.
+
+    Devolve False se a conta não existe (nada é gravado nem auditado)."""
     valor = None if considerar is None else (1 if considerar else 0)
     conn = get_conn()
     try:
+        linha = conn.execute(
+            "SELECT considerar_manual FROM contas_pagar WHERE empresa=? AND id=?",
+            (empresa, id_conta),
+        ).fetchone()
+        if linha is None:
+            return False
         conn.execute(
             "UPDATE contas_pagar SET considerar_manual=? WHERE empresa=? AND id=?",
             (valor, empresa, id_conta),
         )
+        auditoria.registrar(
+            conn, "marcar", "conta", str(id_conta), empresa,
+            {"considerar_manual": linha["considerar_manual"]}, {"considerar_manual": valor},
+        )
         conn.commit()
+        return True
     finally:
         conn.close()
 
@@ -169,11 +184,18 @@ def definir_regras_exclusao(tipo: str, valores: list[str]) -> None:
 
     conn = get_conn()
     try:
+        antes = sorted(
+            r[0] for r in conn.execute("SELECT valor FROM regras_exclusao WHERE tipo=?", (tipo,))
+        )
+        depois = sorted(set(valores))
+        if antes == depois:
+            return  # nada mudou: não regrava nem polui a auditoria
         conn.execute("DELETE FROM regras_exclusao WHERE tipo=?", (tipo,))
         conn.executemany(
             "INSERT INTO regras_exclusao (tipo, valor) VALUES (?, ?)",
-            [(tipo, v) for v in valores],
+            [(tipo, v) for v in depois],
         )
+        auditoria.registrar(conn, "regras_exclusao", "regras_exclusao", tipo, None, antes, depois)
         conn.commit()
     finally:
         conn.close()

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from app import auditoria
 from app.db import get_conn
 from app.ordenacao import ordenar_linhas
 from app.visao import (FILTRO_SQL_NOTAS, SEM_VALOR, casa_data,
@@ -217,41 +218,71 @@ def upsert_notas(linhas: list[dict]) -> None:
 
 
 def definir_ajuste(empresa: str, tipo_nota: str, id_nota: str,
-                   competencia: str | None = None, categoria: str | None = None) -> None:
-    """Grava a edição manual. Passar string vazia limpa o ajuste (volta ao do ERP)."""
-    campos, valores = [], []
-    if competencia is not None:
-        campos.append("competencia_manual = ?")
-        valores.append(competencia or None)
-    if categoria is not None:
-        campos.append("categoria_manual = ?")
-        valores.append(categoria or None)
-    if not campos:
-        return
+                   competencia: str | None = None, categoria: str | None = None) -> bool:
+    """Grava a edição manual, com auditoria. String vazia limpa o ajuste (volta
+    ao do ERP). Devolve False se a nota não existe.
 
-    valores += [empresa, tipo_nota, str(id_nota)]
+    O formato da competência (MM/AAAA, mês 01-12) é garantido pelo CHECK da
+    migração 2: valor torto levanta sqlite3.IntegrityError e nada é gravado."""
+    campos: dict[str, str | None] = {}
+    if competencia is not None:
+        campos["competencia_manual"] = competencia or None
+    if categoria is not None:
+        campos["categoria_manual"] = categoria or None
+    if not campos:
+        return True
+
     conn = get_conn()
     try:
+        chave = (empresa, tipo_nota, str(id_nota))
+        linha = conn.execute(
+            "SELECT competencia_manual, categoria_manual FROM notas"
+            " WHERE empresa=? AND tipo_nota=? AND id=?",
+            chave,
+        ).fetchone()
+        if linha is None:
+            return False
+        # Os nomes de coluna vêm do dicionário acima, escrito no código — nunca
+        # da requisição. Por isso a f-string aqui é segura.
+        atribuicoes = ", ".join(f"{c} = ?" for c in campos)
         conn.execute(
-            f"UPDATE notas SET {', '.join(campos)} WHERE empresa=? AND tipo_nota=? AND id=?",
-            valores,
+            f"UPDATE notas SET {atribuicoes} WHERE empresa=? AND tipo_nota=? AND id=?",
+            [*campos.values(), *chave],
+        )
+        auditoria.registrar(
+            conn, "ajustar", "nota", f"{tipo_nota}:{id_nota}", empresa,
+            {c: linha[c] for c in campos}, campos,
         )
         conn.commit()
+        return True
     finally:
         conn.close()
 
 
 def definir_marcacao(empresa: str, tipo_nota: str, id_nota: str,
-                     considerar: bool | None) -> None:
-    """Grava o override da linha. None devolve a nota ao padrão da situação."""
+                     considerar: bool | None) -> bool:
+    """Grava o override da linha, com auditoria. None devolve a nota ao padrão
+    da situação. Devolve False se a nota não existe."""
     valor = None if considerar is None else int(bool(considerar))
     conn = get_conn()
     try:
+        chave = (empresa, tipo_nota, str(id_nota))
+        linha = conn.execute(
+            "SELECT considerar_manual FROM notas WHERE empresa=? AND tipo_nota=? AND id=?",
+            chave,
+        ).fetchone()
+        if linha is None:
+            return False
         conn.execute(
             "UPDATE notas SET considerar_manual=? WHERE empresa=? AND tipo_nota=? AND id=?",
-            (valor, empresa, tipo_nota, str(id_nota)),
+            (valor, *chave),
+        )
+        auditoria.registrar(
+            conn, "marcar", "nota", f"{tipo_nota}:{id_nota}", empresa,
+            {"considerar_manual": linha["considerar_manual"]}, {"considerar_manual": valor},
         )
         conn.commit()
+        return True
     finally:
         conn.close()
 
