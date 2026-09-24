@@ -1,0 +1,98 @@
+# ===========================================================================
+# .gitignore - o que o Git NUNCA deve enviar.
+#
+# ATENCAO A ESTA REGRA, que ja causou um bug grave no Novos Convertidos:
+# no .gitignore, o "#" so inicia comentario NO COMECO DA LINHA.
+# Um comentario a direita vira PARTE DO PADRAO.
+#
+#   .env      # senhas          <- ERRADO: o padrao vira ".env      # senhas"
+#                                  e o .env acaba indo para o Git.
+#   # senhas                    <- CERTO: comentario em linha propria
+#   .env
+#
+# Por isso, daqui para baixo, todo comentario tem linha so dele.
+#
+# Segunda barreira: o hook pre-commit (.pre-commit-config.yaml) recusa .db,
+# .xls*, .env e .pkl mesmo que alguem force com "git add -f".
+# ===========================================================================
+
+
+# --- SEGREDOS: tokens das 3 contas Tiny e SECRET_KEY -----------------------
+.env
+*.env
+!.env.example
+pa_token.txt
+senhas_web.txt
+flask_secret.txt
+
+
+# --- BANCO E BACKUPS: resultado financeiro real + CPF/CNPJ de clientes (LGPD)
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+data/
+backups/
+
+
+# --- PLANILHAS E ARQUIVOS DO TINY: dados reais de fornecedores e notas ------
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+*.pkl
+Atualizar Sistema*/
+CORREÇÃO*
+
+
+# --- AMOSTRAS: prints de nota fiscal real (nf370.png, exemplo.png) ---------
+*.png
+*.jpg
+*.jpeg
+!static/**/*.png
+*.pdf
+
+
+# --- DOCUMENTOS INTERNOS: o repositorio e PUBLICO ---------------------------
+# CLAUDE.md tem dado pessoal do diretor (nome completo e data de nascimento) e
+# as regras de negocio do rateio. O Claude Code le o arquivo local do mesmo
+# jeito; ele so nao vai para o GitHub.
+CLAUDE.md
+# O prompt de modernizacao descreve a infraestrutura (conta e caminhos do
+# PythonAnywhere, outros sistemas da conta) e as fragilidades de seguranca
+# ainda abertas. Publico, vira roteiro de ataque.
+PROMPT_MELHORIAS.md
+
+
+# --- NUMEROS REAIS GERADOS PELOS TESTES E RELATORIOS -----------------------
+# Valores esperados do golden master e o banco congelado que ele usa.
+tests/golden/esperado/
+# Relatorio de qualidade de dados: tem valores e nomes de fornecedores.
+relatorios/
+
+
+# --- GERADOS ---------------------------------------------------------------
+logs/*
+!logs/.gitkeep
+*.log
+dist/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+venv/
+.venv/
+
+
+# --- EDITOR E SISTEMA OPERACIONAL ------------------------------------------
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+
+# --- CONFIGURACAO LOCAL DE FERRAMENTAS -------------------------------------
+.claude/settings.local.json

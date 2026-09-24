@@ -1,0 +1,15 @@
+# Espelho das dependências de pyproject.toml, para o PythonAnywhere (venv
+# compartilhado: "pip install -r" instala só o que falta). Mudou lá, muda aqui.
+#
+# Até 23/09/2026 este arquivo dizia Flask 3.0.3 e pandas 2.2.2, mas o sistema
+# rodava com as versões abaixo — e o pandas 2.2.2 nem instala mais no Python
+# atual. Estas são as versões com que o golden master foi gerado.
+Flask==3.1.3
+Werkzeug==3.1.8
+Jinja2==3.1.6
+requests==2.34.2
+python-dotenv==1.2.3
+pandas==3.0.5
+openpyxl==3.1.5
+xlrd==2.0.2
+beautifulsoup4==4.15.0

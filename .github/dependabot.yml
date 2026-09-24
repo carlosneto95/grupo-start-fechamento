@@ -1,0 +1,12 @@
+# Dependabot: PR semanal com atualização de dependência. Cada PR passa pelo CI
+# (lint, testes sintéticos, pip-audit); o golden master roda local antes do merge.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

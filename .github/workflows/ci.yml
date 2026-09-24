@@ -1,0 +1,53 @@
+# CI: roda em todo PR e em push na main.
+#
+# O CI NUNCA vê dado real: não há banco, não há .env e não há segredo nos
+# Secrets do GitHub. Por isso o golden master é pulado aqui (ele se declara
+# "skipped") e roda localmente antes de cada merge — o resultado vai no PR.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Histórico inteiro: o gitleaks precisa dele para varrer o diff do PR.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências fixadas
+        run: pip install ".[dev]"
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Ruff (formatação dos arquivos já migrados)
+        run: ruff format --check tests scripts/relatorio_qualidade.py
+
+      - name: Testes com dados sintéticos
+        run: pytest -q -rs
+
+      - name: pip-audit (vulnerabilidades conhecidas)
+        run: pip-audit -r requirements.txt
+
+  segredos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,39 @@
+# Hook de pre-commit: SEGUNDA barreira contra vazamento. A primeira é o
+# .gitignore; esta pega o "git add -f" e o arquivo que escapou de um padrão.
+#
+# Instalar uma vez por clone:   .venv\Scripts\pre-commit install
+# Rodar em tudo, à mão:         .venv\Scripts\pre-commit run --all-files
+
+repos:
+  # Segredos (tokens do Tiny, chaves, senhas) no que está sendo commitado.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  # Lint de bug (pyflakes etc.) no repositório inteiro; formatação só nos
+  # arquivos novos da Fase 0 — o resto entra na reescrita da Fase 1.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8
+    hooks:
+      - id: ruff
+      - id: ruff-format
+        files: ^(tests/|scripts/relatorio_qualidade\.py$)
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Nada acima de 1 MB: planilha, banco ou print que escapou do .gitignore.
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      # Extensões que NUNCA entram, qualquer que seja o tamanho. Um .db vazio
+      # hoje é um .db cheio amanhã; um .env de exemplo mal nomeado é o real.
+      - id: proibir-dados-reais
+        name: recusar banco, planilha, pickle e .env
+        language: fail
+        entry: "Arquivo proibido no git (banco, planilha, pickle ou .env). Veja o .gitignore."
+        files: '(\.(db|db-wal|db-shm|sqlite3?|xls|xlsx|xlsm|pkl|csv)$|(^|/)\.env$|(^|/)[^/]*\.env$)'
