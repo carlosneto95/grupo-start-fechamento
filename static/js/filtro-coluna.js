@@ -183,7 +183,8 @@ async function carregarValores(container, busca) {
         dados = await resp.json();
         if (!resp.ok) throw new Error(dados.erro || "falha");
     } catch (e) {
-        lista.innerHTML = `<div class="filtro-coluna-aviso erro">não consegui carregar: ${e.message}</div>`;
+        // escapar: a mensagem do servidor pode repetir o nome da coluna pedida.
+        lista.innerHTML = `<div class="filtro-coluna-aviso erro">não consegui carregar: ${escapar(e.message)}</div>`;
         return;
     }
 

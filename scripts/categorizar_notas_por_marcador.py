@@ -20,6 +20,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
+from app.escopo import SISTEMA
 from app.receitas import definir_ajuste, listar_notas
 
 # Marcador (sem acento, maiúsculo) -> categoria primária.
@@ -58,7 +59,7 @@ def main():
         return
 
     empresa = argumentos[0]
-    notas = [n for n in listar_notas({"empresa": empresa}) if n["tipo_nota"] == "venda"]
+    notas = [n for n in listar_notas(SISTEMA, {"empresa": empresa}) if n["tipo_nota"] == "venda"]
     if not notas:
         print(f"Nenhuma nota de venda encontrada para {empresa}.")
         return
@@ -95,7 +96,7 @@ def main():
         return
 
     for nota, categoria in decididas:
-        definir_ajuste(nota["empresa"], nota["tipo_nota"], nota["id"], categoria=categoria)
+        definir_ajuste(SISTEMA, nota["empresa"], nota["tipo_nota"], nota["id"], categoria=categoria)
     print(f"\nPreenchidas {len(decididas)} nota(s).")
 
 

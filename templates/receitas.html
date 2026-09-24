@@ -47,7 +47,7 @@
     </datalist>
 
     <div class="tabela-caixa">
-    <table id="tabela-notas" data-marcar="{{ url_for('receitas.marcar') }}" data-ajustar="{{ url_for('receitas.ajustar') }}">
+    <table id="tabela-notas" data-marcar="{{ url_for('receitas.marcar') }}" data-ajustar="{{ url_for('receitas.ajustar') }}" data-somente-leitura="{{ '0' if pode_escrever else '1' }}">
         <thead>
             <tr>
                 {{ col.th(rota, tabela, "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}

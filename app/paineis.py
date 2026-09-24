@@ -56,7 +56,7 @@ def _multi(args, nome) -> list[str]:
 # --------------------------------------------------------------------------
 
 
-def despesas(args) -> dict:
+def despesas(escopo, args) -> dict:
     filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRO_DESPESAS)
 
     ordenar = args.get("ordenar") or "data_vencimento"
@@ -64,7 +64,7 @@ def despesas(args) -> dict:
         ordenar = "data_vencimento"
     direcao = "desc" if args.get("direcao") == "desc" else "asc"
 
-    contas = consulta.despesas(filtros_coluna, ordenar=ordenar, direcao=direcao)
+    contas = consulta.despesas(escopo, filtros_coluna, ordenar=ordenar, direcao=direcao)
     # A tela desenha no máximo LINHAS_NA_TELA linhas; "mostrar todas" (?todas=1)
     # tira o limite. Totais, contagem e funis continuam sobre TODAS as linhas
     # do recorte — só o HTML fica menor. Decisão do Neto (Fase 1): renderizar
@@ -91,7 +91,7 @@ def despesas(args) -> dict:
 # --------------------------------------------------------------------------
 
 
-def receitas(args, tabela: str) -> dict:
+def receitas(escopo, args, tabela: str) -> dict:
     """As telas de Vendas e de Serviços são a mesma listagem com o tipo de nota
     fixo; o que muda é a chave de tabela usada pelos funis (filtros_coluna.py)."""
     filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS[tabela])
@@ -101,7 +101,7 @@ def receitas(args, tabela: str) -> dict:
         ordenar = "data_emissao"
     direcao = "asc" if args.get("direcao") == "asc" else "desc"
 
-    notas = consulta.LISTAGEM[tabela](filtros_coluna, ordenar=ordenar, direcao=direcao)
+    notas = consulta.LISTAGEM[tabela](escopo, filtros_coluna, ordenar=ordenar, direcao=direcao)
     faturadas = [n for n in notas if n["considerar_efetivo"]]
     return {
         "tabela": tabela,
@@ -111,7 +111,7 @@ def receitas(args, tabela: str) -> dict:
         "quantidade": len(faturadas),
         "excluidas": len(notas) - len(faturadas),
         "filtros_coluna": filtros_coluna,
-        "categorias_sugeridas": categorias_conhecidas(),
+        "categorias_sugeridas": categorias_conhecidas(escopo),
         "ordenar": ordenar,
         "direcao": direcao,
         "args_atuais": args.to_dict(flat=False),
@@ -123,7 +123,7 @@ def receitas(args, tabela: str) -> dict:
 # --------------------------------------------------------------------------
 
 
-def periodo_padrao_dashboard(hoje: date | None = None) -> dict:
+def periodo_padrao_dashboard(escopo, hoje: date | None = None) -> dict:
     """Competências de 01/ANO_MINIMO até o último mês com RECEITA considerada.
 
     A receita define o fim porque é ela que para quando o mês ainda não foi
@@ -133,7 +133,9 @@ def periodo_padrao_dashboard(hoje: date | None = None) -> dict:
     fim = (hoje.year, hoje.month)
     meses = [
         (int(c[3:]), int(c[:2]))
-        for c in (n["competencia_efetiva"] for n in listar_notas({}) if n["considerar_efetivo"])
+        for c in (
+            n["competencia_efetiva"] for n in listar_notas(escopo, {}) if n["considerar_efetivo"]
+        )
         if c and len(c) == 7 and c[:2].isdigit() and c[3:].isdigit() and 1 <= int(c[:2]) <= 12
     ]
     if meses:
@@ -150,7 +152,7 @@ def periodo_padrao_dashboard(hoje: date | None = None) -> dict:
     }
 
 
-def dashboard(args) -> dict:
+def dashboard(escopo, args) -> dict:
     """Slicers à esquerda, árvore de gastos no meio e os quadros de resultado
     (Total, Vendas, Serviços) à direita."""
     filtros = {
@@ -164,7 +166,7 @@ def dashboard(args) -> dict:
     # resultado de período nenhum. Sem seleção, vale o período padrão —
     # de 01/ANO_MINIMO ao último mês com receita — escrito no cabeçalho.
     competencias_marcadas = _multi(args, "competencia")
-    periodo_padrao = None if competencias_marcadas else periodo_padrao_dashboard()
+    periodo_padrao = None if competencias_marcadas else periodo_padrao_dashboard(escopo)
     competencias_sel = (
         set(competencias_marcadas) if competencias_marcadas else set(periodo_padrao["competencias"])
     )
@@ -174,7 +176,10 @@ def dashboard(args) -> dict:
     # ordenado=False: o Dashboard só AGREGA as contas; ordenar 15 mil linhas
     # por vencimento para depois somar era custo puro.
     contas = listar_contas(
-        {k: v for k, v in filtros.items() if v}, competencias=competencias_sel, ordenado=False
+        escopo,
+        {k: v for k, v in filtros.items() if v},
+        competencias=competencias_sel,
+        ordenado=False,
     )
     filtros["competencia"] = competencias_marcadas  # só para o template marcar os itens
     consideradas = [c for c in contas if c["considerar_efetivo"]]
@@ -182,6 +187,7 @@ def dashboard(args) -> dict:
     # Receita acompanha empresa e competência; categoria/subcategoria da despesa
     # não se aplicam às notas, que têm vocabulário próprio de categoria.
     notas = listar_notas(
+        escopo,
         {"empresa": filtros["empresa"]} if filtros["empresa"] else {},
         competencias=competencias_sel,
     )
@@ -224,10 +230,10 @@ def dashboard(args) -> dict:
         "quantidade_contas": len(consideradas),
         "filtros": filtros,
         "opcoes": {
-            "competencia": competencias_disponiveis(),
-            "empresa": listar_valores_distintos("empresa"),
-            "categoria_primaria": listar_valores_distintos("categoria_primaria"),
-            "subcategoria": listar_valores_distintos("subcategoria"),
+            "competencia": competencias_disponiveis(escopo),
+            "empresa": listar_valores_distintos(escopo, "empresa"),
+            "categoria_primaria": listar_valores_distintos(escopo, "categoria_primaria"),
+            "subcategoria": listar_valores_distintos(escopo, "subcategoria"),
         },
         "args_atuais": args.to_dict(flat=False),
     }
@@ -238,7 +244,7 @@ def dashboard(args) -> dict:
 # --------------------------------------------------------------------------
 
 
-def analise_receitas(args) -> dict:
+def analise_receitas(escopo, args) -> dict:
     """Faturamento com a categoria como espinha dorsal. Ao contrário do
     Dashboard, não entra despesa nem rateio: a pergunta é de onde vem o
     dinheiro e em que mês ele parou de vir."""
@@ -247,6 +253,7 @@ def analise_receitas(args) -> dict:
     categorias_marcadas = _multi(args, "categoria_primaria_efetiva")
 
     notas = listar_notas(
+        escopo,
         {"tipo_nota": tipos_marcados} if tipos_marcados else {},
         competencias=set(competencias_marcadas) or None,
         categorias=set(categorias_marcadas) or None,
@@ -256,7 +263,7 @@ def analise_receitas(args) -> dict:
     # As opções dos slicers saem do universo INTEIRO, não do recorte filtrado:
     # os slicers do dashboard não cascateiam (decisão de 24/08/2026), e sem isso
     # marcar uma categoria apagaria as outras da lista.
-    todas = [n for n in listar_notas({}) if n["considerar_efetivo"]]
+    todas = [n for n in listar_notas(escopo, {}) if n["considerar_efetivo"]]
 
     return {
         "secao": "analise_receitas",
@@ -288,7 +295,7 @@ def analise_receitas(args) -> dict:
 # --------------------------------------------------------------------------
 
 
-def valores_filtro(args) -> tuple[dict, int]:
+def valores_filtro(escopo, args) -> tuple[dict, int]:
     """Lista de um funil, em cascata como no Excel: os valores saem das linhas
     que sobrevivem aos filtros das OUTRAS colunas. O filtro da própria coluna
     é retirado de propósito — senão, ao marcar um valor, a lista passaria a ter
@@ -297,8 +304,10 @@ def valores_filtro(args) -> tuple[dict, int]:
     Devolve (corpo, status_http)."""
     tabela = args.get("tabela", "")
     coluna = args.get("coluna", "")
-    if tabela not in COLUNAS_FILTRAVEIS:
-        return {"erro": f"tabela desconhecida: {tabela}"}, 400
+    # A lista de usuários só existe para Admin: para os demais, a tabela é
+    # "desconhecida" (não confirma que existe).
+    if tabela not in COLUNAS_FILTRAVEIS or (tabela == "usuarios" and not escopo.eh_admin):
+        return {"erro": "tabela desconhecida"}, 400
 
     filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS[tabela])
     selecionados = filtros_coluna.pop(coluna, [])
@@ -306,10 +315,30 @@ def valores_filtro(args) -> tuple[dict, int]:
         dados = valores_de_coluna(
             tabela,
             coluna,
-            consulta.linhas(tabela, filtros_coluna),
+            consulta.linhas(escopo, tabela, filtros_coluna),
             (args.get("q") or "").strip(),
             selecionados,
         )
     except ValueError as e:
         return {"erro": str(e)}, 400
     return dados, 200
+
+
+# --------------------------------------------------------------------------
+# Admin -> Usuários
+# --------------------------------------------------------------------------
+
+
+def usuarios(escopo, args) -> dict:
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS["usuarios"])
+    ordenar = args.get("ordenar") or "login"
+    if ordenar not in consulta.TIPOS_ORDENACAO_USUARIOS:
+        ordenar = "login"
+    direcao = "desc" if args.get("direcao") == "desc" else "asc"
+    return {
+        "usuarios": consulta.usuarios_listagem(escopo, filtros_coluna, ordenar, direcao),
+        "filtros_coluna": filtros_coluna,
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "args_atuais": args.to_dict(flat=False),
+    }

@@ -316,7 +316,7 @@
                         {% for b in a.filhos %}
                             {% set id_b = "%s-%d"|format(id_a, loop.index) %}
                             <tr class="nivel-1" data-id="{{ id_b }}" data-pai="{{ id_a }}" hidden>
-                                <td style="padding-left: 26px">
+                                <td class="recuo-nivel-1">
                                     <button type="button" class="expandir-linha"
                                             {{ "disabled" if not b.filhos }}>{{ "+" if b.filhos else "" }}</button>
                                     {{ b.nome }}
@@ -326,7 +326,7 @@
                             </tr>
                             {% for c in b.filhos %}
                             <tr class="nivel-2" data-pai="{{ id_b }}" hidden>
-                                <td style="padding-left: 62px">{{ c.nome }}</td>
+                                <td class="recuo-nivel-2">{{ c.nome }}</td>
                                 <td class="num">{{ c.valor|moeda }}</td>
                                 <td class="num">{{ "%.0f"|format(c.percentual) }}%</td>
                             </tr>

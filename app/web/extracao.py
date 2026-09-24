@@ -1,17 +1,21 @@
-"""Sincronização com o Tiny disparada pela tela."""
+"""Sincronização com o Tiny disparada pela tela — só Admin (consome a cota da
+API das três contas)."""
 
 from datetime import date
 
 from flask import Blueprint, jsonify, render_template, request
 
-from app import sincronizar_tudo
+from app import sincronizar_tudo, validacao
 from app.config.companies import load_companies
-from app.extracao_job import estado_atual, iniciar as iniciar_job
+from app.extracao_job import TODAS, estado_atual
+from app.extracao_job import iniciar as iniciar_job
+from app.seguranca import admin_necessario
 
 bp = Blueprint("extracao", __name__)
 
 
 @bp.route("/extracao")
+@admin_necessario
 def tela():
     hoje = date.today()
     return render_template(
@@ -24,14 +28,21 @@ def tela():
 
 
 @bp.route("/extracao/iniciar", methods=["POST"])
+@admin_necessario
 def iniciar():
-    dados = request.get_json()
-    ok, mensagem = iniciar_job(
-        dados.get("empresa"), int(dados.get("ano")), forcar=bool(dados.get("forcar"))
-    )
+    dados = request.get_json(silent=True) or {}
+    try:
+        chaves = [TODAS] + [e.key for e in load_companies()]
+        empresa = validacao.escolha(dados.get("empresa"), "Empresa", chaves)
+        ano = validacao.ano(dados.get("ano"))
+        forcar = validacao.booleano_ou_nulo(dados.get("forcar")) or False
+    except validacao.ErroValidacao as e:
+        return jsonify({"ok": False, "mensagem": str(e)}), 400
+    ok, mensagem = iniciar_job(empresa, ano, forcar=forcar)
     return jsonify({"ok": ok, "mensagem": mensagem}), (200 if ok else 409)
 
 
 @bp.route("/extracao/status")
+@admin_necessario
 def status():
     return jsonify(estado_atual())

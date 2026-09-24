@@ -1,0 +1,26 @@
+{% extends "_base.html" %}
+{% block titulo %}Trocar senha — Grupo Start{% endblock %}
+{% block corpo %}
+<div class="caixa-login cartao">
+    <h2>Trocar senha</h2>
+    {% if obrigatoria %}
+    {# Primeiro acesso ou senha redefinida pelo Admin: a senha atual é conhecida
+       por quem a criou, então precisa ser trocada antes de qualquer tela. #}
+    <p class="aviso-linha">Antes de continuar, defina uma senha só sua.</p>
+    {% endif %}
+    {% if erro %}<p class="aviso">{{ erro }}</p>{% endif %}
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Senha atual
+            <input type="password" name="atual" autocomplete="current-password" required maxlength="128">
+        </label>
+        <label>Senha nova (10 a 128 caracteres, com letras e números)
+            <input type="password" name="nova" autocomplete="new-password" required minlength="10" maxlength="128">
+        </label>
+        <label>Repita a senha nova
+            <input type="password" name="repetida" autocomplete="new-password" required minlength="10" maxlength="128">
+        </label>
+        <button type="submit" class="botao-principal">Salvar</button>
+    </form>
+</div>
+{% endblock %}

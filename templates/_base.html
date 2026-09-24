@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# Token CSRF para os fetch POST (lido por static/js/csrf.js e enviado no
+       cabeçalho X-CSRFToken). Formulário comum leva o campo escondido. #}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block titulo %}Grupo Start{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -12,8 +15,10 @@
             <a class="marca" href="{{ url_for('despesas.listar') }}">
                 Grupo Start <span>Fechamento</span>
             </a>
+            {# Menu só com sessão. Os itens de Admin somem para os outros perfis —
+               conforto visual; a trava é o decorador na rota. #}
+            {% if escopo %}
             <nav class="navegacao">
-                {# 'ativo' marca em qual seção o usuário está. #}
                 <a href="{{ url_for('dashboard.painel') }}"
                    class="{{ 'ativo' if secao == 'dashboard' }}">Resultados</a>
                 <a href="{{ url_for('despesas.listar') }}"
@@ -24,11 +29,24 @@
                    class="{{ 'ativo' if secao == 'receitas_servicos' }}">Receitas Serviços</a>
                 <a href="{{ url_for('analise.receitas') }}"
                    class="{{ 'ativo' if secao == 'analise_receitas' }}">Análise Receitas</a>
+                {% if eh_admin %}
                 <a href="{{ url_for('extracao.tela') }}"
                    class="{{ 'ativo' if secao == 'extracao' }}">Sincronizar</a>
                 <a href="{{ url_for('admin.exclusoes') }}"
                    class="{{ 'ativo' if secao == 'config' }}">Configurações</a>
+                <a href="{{ url_for('admin.usuarios_lista') }}"
+                   class="{{ 'ativo' if secao == 'usuarios' }}">Usuários</a>
+                {% endif %}
             </nav>
+            <div class="usuario-logado">
+                <a href="{{ url_for('auth.trocar_senha') }}" title="Trocar senha">{{ usuario_nome }}</a>
+                {# Sair é POST com CSRF: um link num site alheio não derruba a sessão. #}
+                <form method="post" action="{{ url_for('auth.sair') }}" class="form-sair">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="botao-sair">Sair</button>
+                </form>
+            </div>
+            {% endif %}
         </div>
     </header>
 
@@ -40,6 +58,7 @@
         {% block corpo %}{% endblock %}
     </main>
 
+    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

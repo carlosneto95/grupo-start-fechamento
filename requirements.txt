@@ -7,6 +7,10 @@
 Flask==3.1.3
 Werkzeug==3.1.8
 Jinja2==3.1.6
+# CSRF em todo POST (Fase 2). Mesma versão do Controle de Impostos, que já
+# está no virtualenv compartilhado do PythonAnywhere.
+Flask-WTF==1.3.0
+WTForms==3.2.2
 requests==2.34.2
 python-dotenv==1.2.3
 pandas==3.0.5

@@ -31,9 +31,10 @@ def _marcados(filtros_coluna: dict, coluna: str) -> set | None:
     return set(filtros_coluna.get(coluna) or []) or None
 
 
-def despesas(filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True) -> list[dict]:
+def despesas(escopo, filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True) -> list[dict]:
     filtros = {c: filtros_coluna[c] for c in SQL_DESPESAS if filtros_coluna.get(c)}
     return listar_contas(
+        escopo,
         filtros,
         {campo: _marcados(filtros_coluna, campo) for campo in DATAS_DESPESAS},
         ordenar=ordenar,
@@ -45,13 +46,14 @@ def despesas(filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True) -
     )
 
 
-def receitas(filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
+def receitas(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
     filtros = {c: filtros_coluna[c] for c in SQL_RECEITAS if filtros_coluna.get(c)}
     # A emissão das notas também é árvore de datas, e listar_notas a espera
     # dentro do mesmo dicionário de filtros.
     if filtros_coluna.get("data_emissao"):
         filtros["data_emissao"] = filtros_coluna["data_emissao"]
     return listar_notas(
+        escopo,
         filtros,
         competencias=_marcados(filtros_coluna, "competencia_efetiva"),
         ordenar=ordenar,
@@ -69,17 +71,60 @@ def _receitas_do_tipo(tipo: str):
     O tipo é fixado AQUI e não vem da URL de propósito: é a identidade da tela,
     não um filtro que o usuário possa desmarcar. Assim a cascata dos funis, que
     passa por esta mesma função, enxerga só o universo daquela tela."""
-    def listar(filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
+    def listar(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
         filtros = dict(filtros_coluna)
         filtros["tipo_nota"] = [tipo]
-        return receitas(filtros, ordenar=ordenar, direcao=direcao, ordenado=ordenado)
+        return receitas(escopo, filtros, ordenar=ordenar, direcao=direcao, ordenado=ordenado)
     return listar
 
 
 receitas_vendas = _receitas_do_tipo("venda")
 receitas_servicos = _receitas_do_tipo("servico")
 
+TIPOS_ORDENACAO_USUARIOS = {
+    "login": "texto",
+    "nome": "texto",
+    "perfil": "texto",
+    "empresas_texto": "texto",
+    "situacao": "texto",
+    "ultimo_login": "texto",
+}
+
+
+def _situacao(u: dict, agora: str) -> str:
+    if not u["ativo"]:
+        return "inativo"
+    if u["bloqueado_ate"] and u["bloqueado_ate"] > agora:
+        return "bloqueado"
+    if u["deve_trocar_senha"]:
+        return "trocar senha"
+    return "ativo"
+
+
+def usuarios_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True):
+    """Usuários para a tela de Admin. usuarios.listar() exige Admin — outro
+    perfil nem chega a montar a lista. Filtro em Python: são poucas linhas."""
+    from app import usuarios
+    from app.db import agora_brasilia
+    from app.ordenacao import ordenar_linhas
+    from app.visao import SEM_VALOR
+
+    agora = agora_brasilia()
+    linhas = usuarios.listar(escopo)
+    for u in linhas:
+        u["empresas_texto"] = "todas" if u["perfil"] == "admin" else ", ".join(u["empresas"])
+        u["situacao"] = _situacao(u, agora)
+    for coluna, marcados in filtros_coluna.items():
+        if coluna in TIPOS_ORDENACAO_USUARIOS and marcados:
+            aceitos = set(marcados)
+            linhas = [u for u in linhas if (str(u.get(coluna) or "").strip() or SEM_VALOR) in aceitos]
+    if not ordenado:
+        return linhas
+    return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_USUARIOS, "login")
+
+
 LISTAGEM = {
+    "usuarios": usuarios_listagem,
     "despesas": despesas,
     "receitas": receitas,
     "receitas_vendas": receitas_vendas,
@@ -87,8 +132,8 @@ LISTAGEM = {
 }
 
 
-def linhas(tabela: str, filtros_coluna: dict) -> list[dict]:
+def linhas(escopo, tabela: str, filtros_coluna: dict) -> list[dict]:
     if tabela not in LISTAGEM:
         raise ValueError(f"tabela desconhecida: {tabela}")
     # A lista do funil não depende da ordem das linhas: pula a ordenação.
-    return LISTAGEM[tabela](filtros_coluna, ordenado=False)
+    return LISTAGEM[tabela](escopo, filtros_coluna, ordenado=False)

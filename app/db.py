@@ -90,6 +90,7 @@ MIGRACOES: list[tuple[int, str | None, object]] = [
     (1, "0001_esquema_inicial.sql", None),
     (2, "0002_integridade_auditoria.sql", None),
     (3, None, _centavos),
+    (4, "0004_usuarios.sql", None),
 ]
 
 

@@ -12,6 +12,7 @@
     </p>
 
     <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <fieldset>
             <legend>Categoria primária</legend>
             {% for c in categorias_primarias %}

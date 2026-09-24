@@ -4,6 +4,9 @@
 // deixando o campo em branco.
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Perfil Leitura: nada é editável (o servidor recusa com 403 de todo jeito).
+    const tabela = document.getElementById("tabela-notas");
+    if (tabela && tabela.dataset.somenteLeitura === "1") return;
     document.querySelectorAll(".celula-editavel").forEach((celula) => {
         celula.addEventListener("click", () => abrirEdicao(celula));
     });
@@ -75,11 +78,8 @@ function abrirEdicao(celula) {
         try {
             // Destino vem do servidor (data-ajustar na tabela), nunca fixo.
             const destino = document.getElementById("tabela-notas").dataset.ajustar;
-            const resp = await fetch(destino, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(corpo),
-            });
+            // postarJson (csrf.js): leva o token CSRF no cabeçalho.
+            const resp = await postarJson(destino, corpo);
             if (!resp.ok) throw new Error("falha ao salvar");
             // Recarrega para os totais e o filtro de competência refletirem a mudança.
             window.location.reload();

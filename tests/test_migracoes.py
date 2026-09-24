@@ -131,7 +131,12 @@ def test_competencia_suja_do_tiny_continua_aceita(banco_exemplo):
 def _auditoria(caminho):
     conn = sqlite3.connect(caminho)
     conn.row_factory = sqlite3.Row
-    linhas = [dict(r) for r in conn.execute("SELECT * FROM auditoria ORDER BY id")]
+    # Só a trilha dos DADOS: os eventos de usuário (criação do usuário de
+    # teste, login) têm teste próprio em test_seguranca.py.
+    linhas = [
+        dict(r)
+        for r in conn.execute("SELECT * FROM auditoria WHERE entidade <> 'usuario' ORDER BY id")
+    ]
     conn.close()
     return linhas
 
@@ -157,7 +162,7 @@ def test_marcar_conta_grava_antes_e_depois(cliente, banco_exemplo):
     )
     assert json.loads(linha["valor_anterior"]) == {"considerar_manual": None}
     assert json.loads(linha["valor_novo"]) == {"considerar_manual": 0}
-    assert linha["usuario"] == "local" and linha["ip"] == "127.0.0.1"
+    assert linha["usuario"] == "teste-admin-todas" and linha["ip"] == "127.0.0.1"
 
 
 def test_ajuste_de_nota_grava_so_o_campo_mexido(cliente, banco_exemplo):
@@ -195,11 +200,21 @@ def test_regras_de_exclusao_auditam_so_quando_mudam(cliente, banco_exemplo):
     form = {"categoria_primaria": ["APORTE", "IMPOSTO"], "subcategoria": ["APORTE"]}
     cliente.post("/configuracoes/exclusoes", data=form)  # igual ao que já está
     assert _auditoria(banco_exemplo) == []
-    form["categoria_primaria"].append("LIKE")
+    form["categoria_primaria"].append("COMERCIO")
     cliente.post("/configuracoes/exclusoes", data=form)
     (linha,) = _auditoria(banco_exemplo)
     assert json.loads(linha["valor_anterior"]) == ["APORTE", "IMPOSTO"]
-    assert json.loads(linha["valor_novo"]) == ["APORTE", "IMPOSTO", "LIKE"]
+    assert json.loads(linha["valor_novo"]) == ["APORTE", "COMERCIO", "IMPOSTO"]
+
+
+def test_regra_inventada_no_formulario_e_ignorada(cliente, banco_exemplo):
+    """Fase 2: só vira regra o que existe nas contas ou já é regra. A regra
+    antiga de subcategoria APORTE (sem conta atual) continua de pé."""
+    form = {"categoria_primaria": ["APORTE", "IMPOSTO", "INVENTADA"], "subcategoria": ["APORTE"]}
+    cliente.post("/configuracoes/exclusoes", data=form)
+    assert _auditoria(banco_exemplo) == []
+    corpo = cliente.get("/configuracoes/exclusoes").get_data(as_text=True)
+    assert 'value="APORTE"' in corpo  # a regra antiga aparece para poder ser mantida
 
 
 def test_somente_leitura_aceita_caminho_com_espaco_e_acento(tmp_path):

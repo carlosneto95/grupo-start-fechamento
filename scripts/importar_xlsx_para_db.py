@@ -15,6 +15,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
 from app.db import init_db
+from app.escopo import SISTEMA
 from app.repositorio_contas_pagar import COLUNAS, upsert_contas
 
 
@@ -41,7 +42,7 @@ def main():
     for linha in linhas:
         linha["id"] = str(linha.get("id"))
 
-    upsert_contas(linhas)
+    upsert_contas(SISTEMA, linhas)
     print(f"{len(linhas)} linha(s) importada(s) de {caminho} para o banco.")
 
 

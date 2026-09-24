@@ -11,6 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const tabela = document.querySelector("[data-marcar]");
     if (!tabela) return;
     const destino = tabela.dataset.marcar;
+    // Perfil Leitura: a coluna mostra o estado, mas não alterna. (O servidor
+    // recusa com 403 de qualquer jeito; isto só evita o clique inútil.)
+    if (tabela.dataset.somenteLeitura === "1") {
+        tabela.querySelectorAll(".alternar-considerar").forEach((b) => (b.disabled = true));
+        return;
+    }
 
     const totalEl = document.getElementById("total-considerado");
     let total = totalEl ? parseFloat(totalEl.dataset.total) : 0;
@@ -37,11 +43,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             botao.disabled = true;
             try {
-                const resp = await fetch(destino, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(corpo),
-                });
+                // postarJson (csrf.js): leva o token CSRF no cabeçalho.
+                const resp = await postarJson(destino, corpo);
                 if (!resp.ok) throw new Error("resposta " + resp.status);
 
                 pintar(botao, considerar);

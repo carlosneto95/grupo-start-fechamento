@@ -22,16 +22,18 @@ from app.db import agora_brasilia
 
 
 def _autor() -> tuple[str, str | None]:
-    """(usuário, ip). Até a Fase 2 não há login: o usuário é o configurado em
-    GSF_USUARIO_PADRAO. Fora de requisição (script, sincronização), "cli"."""
+    """(usuário, ip). Na web, o login do escopo da requisição (montado do
+    banco por app/seguranca.py). Fora de requisição — scripts, sincronização,
+    tarefa agendada —, "sistema"."""
     try:
-        from flask import current_app, has_request_context, request
+        from flask import g, has_request_context, request
 
         if has_request_context():
-            return current_app.config.get("USUARIO_PADRAO", "local"), request.remote_addr
+            escopo = g.get("escopo")
+            return (escopo.login if escopo else "(anônimo)"), request.remote_addr
     except RuntimeError:
         pass
-    return "cli", None
+    return "sistema", None
 
 
 def _json(valor) -> str | None:
@@ -48,9 +50,14 @@ def registrar(
     empresa: str | None,
     antes,
     depois,
+    usuario: str | None = None,
 ) -> None:
-    """Grava uma linha. NÃO dá commit: quem chama confirma junto com a escrita."""
-    usuario, ip = _autor()
+    """Grava uma linha. NÃO dá commit: quem chama confirma junto com a escrita.
+
+    `usuario` explícito serve aos eventos de login, que acontecem antes de
+    existir escopo (o autor é quem TENTOU entrar)."""
+    autor, ip = _autor()
+    usuario = usuario or autor
     conn.execute(
         "INSERT INTO auditoria (data_hora, usuario, acao, entidade, entidade_id, empresa,"
         " valor_anterior, valor_novo, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

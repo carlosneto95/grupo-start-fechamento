@@ -9,6 +9,63 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Fase 2 — Segurança da informação · 24/09/2026 · aguardando validação
+
+### O que foi feito
+- **Login** (padrão do Impostos): hash scrypt, bloqueio de 15 min após 5 erros,
+  mensagem única para login inexistente e senha errada (com tempo igualado), sessão
+  de 60 min parada, cookie `gsf_sessao` HttpOnly/Secure/SameSite=Lax com caminho do
+  prefixo, troca de senha obrigatória no primeiro acesso, sessões derrubadas ao mudar
+  senha, perfil, empresas ou ativo. Proteção contra open redirect no `?proximo=`.
+- **Perfis e escopo por empresa** (migração 4: `usuarios`, `usuario_empresa`):
+  Admin, Financeiro e Leitura. `app/escopo.clausula()` entra em todo SQL de contas e
+  notas e erra se o escopo faltar; perfil e empresas vêm do banco a cada requisição;
+  escrita fora do escopo responde 404. Scripts e sincronização usam o escopo `SISTEMA`.
+- **CSRF** (Flask-WTF 1.3.0, a versão do Impostos) em todo POST; `fetch` manda o token
+  no cabeçalho (`static/js/csrf.js`); Sair é POST.
+- **Headers**: CSP sem `unsafe-inline` (Google Fonts é a única origem externa), HSTS,
+  X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, no-store.
+  Os dois `style="..."` do Dashboard viraram classe.
+- **Validação** (`app/validacao.py`) em toda rota de escrita; toda f-string com SQL
+  revista (nome vem de constante ou lista branca; valor é sempre parâmetro).
+- **LGPD**: listagem de notas deixou de ler o CPF/CNPJ do cliente;
+  `mascarar_documento` pronto para quando alguma tela o mostrar.
+- **Usuários**: tela Admin → Usuários (tabela ordenável e filtrável), criação com
+  senha provisória mostrada uma vez, edição, redefinição de senha;
+  `scripts/criar_usuario.py` pelo terminal. Admin não rebaixa nem desativa a si mesmo.
+- **Auditoria**: autor passa a ser o usuário logado; login, falha, bloqueio, logout,
+  acesso negado, criação e alteração de usuário registrados.
+- **Achado no caminho**: salvar a tela de regras de exclusão apagava regra cujo valor
+  não tinha conta na visão (latente: hoje as 5 regras têm conta), e o formulário
+  aceitava categoria inventada. Corrigido e testado.
+- **Revisão final**: `tests/test_seguranca.py` (adaptado do `revisao_seguranca.py` do
+  Novos Convertidos) — 84 testes: sem login, outra empresa, perfil, CSRF, headers,
+  login, sessão, troca de senha, usuários, escopo, SQL, LGPD, validação.
+- **Testes: 255.** Golden master idêntico (o Admin vê os mesmos números de antes).
+  `pip-audit`: nenhuma vulnerabilidade conhecida.
+- Banco local migrado para a versão 4 (backup `backups/app_20260924_175531_antes_v4.db`);
+  usuário `neto` (Admin) criado com senha provisória e troca obrigatória.
+- Relatório de riscos antes e depois em `relatorios/` (fora do git: o repositório é
+  público).
+
+### Decisões
+1. Usuários: só o Neto, como Admin (decisão do Neto). Os demais pela tela.
+2. Financeiro não sincroniza nem mexe em regra de exclusão (valem para as três
+   empresas e consomem a cota da API de todas).
+3. Admin vê todas as empresas sem precisar de atribuição, inclusive uma nova.
+4. Escrita fora do escopo = 404 (não confirma que o registro existe); tela de Admin
+   negada = 403 (a tela existe, só não é para o perfil), com registro na auditoria.
+5. `.env` local com `GSF_COOKIE_SEGURO=0` (HTTP em 127.0.0.1); produção fica com o
+   padrão, ligado.
+6. Exportação para Excel (item 7) não existe ainda: a neutralização de fórmula entra
+   junto com ela, na Fase 4.
+
+### Pendências
+- **Neto:** entrar com a senha provisória e definir a própria.
+- Fase 5: `.env` com permissão 600, `GSF_PREFIXO`, Force HTTPS.
+
+---
+
 ## Fase 1 — Estrutura técnica · 24/09/2026 · validada pelo Neto e mesclada (PR #6)
 
 ### O que foi feito

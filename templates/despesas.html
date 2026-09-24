@@ -46,7 +46,7 @@
     {% endif %}
 
     <div class="tabela-caixa">
-    <table id="tabela-contas" data-marcar="{{ url_for('despesas.marcar') }}">
+    <table id="tabela-contas" data-marcar="{{ url_for('despesas.marcar') }}" data-somente-leitura="{{ '0' if pode_escrever else '1' }}">
         <thead>
             <tr>
                 {{ col.th("despesas.listar", "despesas", "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}

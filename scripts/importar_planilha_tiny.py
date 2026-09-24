@@ -37,6 +37,7 @@ from app.reports.contas_pagar import (
     _separar_categoria,
     normalizar_forma_pagamento,
 )
+from app.escopo import SISTEMA
 from app.repositorio_contas_pagar import mapa_por_id, upsert_contas
 
 # A planilha usa rótulos de tela ("Paga"); a API usa códigos ("pago"). Uniformizamos
@@ -272,7 +273,7 @@ def main():
     total_novas = total_existentes = 0
     for empresa in sorted({l["empresa"] for l in linhas}):
         do_arquivo = [l for l in linhas if l["empresa"] == empresa]
-        no_banco = mapa_por_id(empresa)
+        no_banco = mapa_por_id(SISTEMA, empresa)
         novas = [l for l in do_arquivo if l["id"] not in no_banco]
         existentes = len(do_arquivo) - len(novas)
         total_novas += len(novas)
@@ -288,7 +289,7 @@ def main():
             else:
                 gravar = do_arquivo if sobrescrever else novas
             if gravar:
-                upsert_contas(gravar)
+                upsert_contas(SISTEMA, gravar)
 
     print()
     if simular:
