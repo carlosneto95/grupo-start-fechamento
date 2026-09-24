@@ -1346,3 +1346,42 @@ a.botao-principal { text-decoration: none; display: inline-block; color: #fff; }
     padding: 6px 8px; font-size: 13px;
     border: 1px solid var(--borda-forte); border-radius: var(--raio-p); background: var(--superficie);
 }
+
+/* ---------- Fase 4.1: pendências e selo de sincronização ---------- */
+
+/* Selo na barra escura: verde até 2 dias, vermelho acima (ou nunca). */
+.selo-sincronizacao {
+    font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none;
+    padding: 3px 9px; border-radius: 99px; flex-shrink: 0;
+}
+.selo-sincronizacao.selo-ok { background: rgba(46, 125, 79, .22); color: #BFE3CC; }
+.selo-sincronizacao.selo-alerta { background: var(--despesa); color: #fff; }
+.selo-sincronizacao:hover { filter: brightness(1.15); }
+
+.grade-pendencias {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--esp-4);
+}
+.cartao.pendencia { padding: var(--esp-4) var(--esp-5); gap: var(--esp-2); }
+.pendencia h2 { margin: 0; }
+.pendencia-aberta::before { background: var(--despesa); }
+.pendencia-ok::before { background: var(--receita); }
+.pendencia-total { display: flex; align-items: baseline; gap: var(--esp-4); margin: 0; }
+.pendencia-total strong { font-size: 20px; }
+.pendencia-empresas, .pendencia-exemplos { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.pendencia-empresas li { display: grid; grid-template-columns: 70px 50px 1fr; gap: var(--esp-3); align-items: baseline; }
+.pendencia-exemplos li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; }
+.pendencia .legenda { margin: 0; }
+.num.suave { color: var(--tinta-suave); }
+
+/* Barra em 1366 px (Fase 4.1): com Pendências e o selo, o menu não cabia e
+   Configurações/Usuários sumiam sob a rolagem escondida. Até 1500 px o
+   usuário vira só a inicial (nome no title) e o menu aperta o espaçamento —
+   nenhum item some. */
+@media (max-width: 1500px) {
+    .usuario-texto, .marca-sistema { display: none; }
+    .navegacao { gap: 0; }
+    .navegacao a { padding: 5px 7px; gap: 5px; }
+    .topo-interno { gap: var(--esp-4); }
+}

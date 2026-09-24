@@ -29,26 +29,35 @@
             {# Menu só com sessão. Os itens de Admin somem para os outros perfis —
                conforto visual; a trava é o decorador na rota. #}
             {% if escopo %}
-            {% set itens = [
+            {# Nome próprio (itens_menu): um "itens" genérico aqui sobrescrevia a
+               variável de mesmo nome das telas (achado na Fase 4.1). #}
+            {% set itens_menu = [
                 ('dashboard.painel', 'Resultados', 'resultados', 'dashboard', true),
                 ('despesas.listar', 'Despesas', 'despesas', 'despesas', true),
                 ('receitas.vendas', 'Receitas Vendas', 'vendas', 'receitas_vendas', true),
                 ('receitas.servicos', 'Receitas Serviços', 'servicos', 'receitas_servicos', true),
                 ('analise.receitas', 'Análise Receitas', 'analise', 'analise_receitas', true),
+                ('pendencias.painel', 'Pendências', 'pendencias', 'pendencias', true),
                 ('extracao.tela', 'Sincronizar', 'sincronizar', 'extracao', eh_admin),
                 ('admin.exclusoes', 'Configurações', 'configuracoes', 'config', eh_admin),
                 ('admin.usuarios_lista', 'Usuários', 'usuarios', 'usuarios', eh_admin),
             ] %}
             <nav class="navegacao" aria-label="Menu principal">
-                {% for rota, texto, icone, chave, visivel in itens if visivel %}
+                {% for rota, texto, icone, chave, visivel in itens_menu if visivel %}
                 <a href="{{ url_for(rota) }}" class="{{ 'ativo' if secao == chave }}"
                    {% if secao == chave %}aria-current="page"{% endif %}>
                     {{ ic.icone(icone) }}<span>{{ texto }}</span>
                 </a>
                 {% endfor %}
             </nav>
+            {# Idade do dado mais velho no escopo; vermelho acima de 2 dias. #}
+            {% if selo_sincronizacao %}
+            <a class="selo-sincronizacao {{ 'selo-alerta' if selo_sincronizacao.alerta else 'selo-ok' }}"
+               href="{{ url_for('extracao.tela') if eh_admin else url_for('pendencias.painel') }}"
+               title="{{ selo_sincronizacao.dica }}">{{ selo_sincronizacao.texto }}</a>
+            {% endif %}
             <div class="usuario-logado">
-                <a href="{{ url_for('auth.trocar_senha') }}" class="usuario-nome" title="Trocar senha">
+                <a href="{{ url_for('auth.trocar_senha') }}" class="usuario-nome" title="{{ usuario_nome }} — trocar senha">
                     <span class="usuario-inicial">{{ (usuario_nome or "?")[:1]|upper }}</span>
                     <span class="usuario-texto">{{ usuario_nome }}<small>{{ escopo.perfil }}</small></span>
                 </a>

@@ -33,7 +33,7 @@ jobs:
         run: ruff check .
 
       - name: Ruff (formatação dos arquivos já migrados)
-        run: ruff format --check tests app/__init__.py app/db.py app/auditoria.py app/dinheiro.py app/migracao_centavos.py app/sincronizar_tudo.py app/extracao_job.py scripts/sincronizar.py scripts/sincronizar_receitas.py scripts/tarefa_diaria.py app/configuracao.py app/registro.py app/paineis.py app/web app/config/companies.py app.py scripts/relatorio_qualidade.py scripts/medir_desempenho.py scripts/diagnosticar_env.py app/escopo.py app/seguranca.py app/usuarios.py app/validacao.py scripts/criar_usuario.py scripts/capturar_telas.py
+        run: ruff format --check tests app/__init__.py app/db.py app/auditoria.py app/dinheiro.py app/migracao_centavos.py app/sincronizar_tudo.py app/extracao_job.py scripts/sincronizar.py scripts/sincronizar_receitas.py scripts/tarefa_diaria.py app/configuracao.py app/registro.py app/paineis.py app/web app/config/companies.py app.py scripts/relatorio_qualidade.py scripts/medir_desempenho.py scripts/diagnosticar_env.py app/escopo.py app/seguranca.py app/usuarios.py app/validacao.py scripts/criar_usuario.py scripts/capturar_telas.py app/pendencias.py
 
       - name: Testes com dados sintéticos
         run: pytest -q -rs

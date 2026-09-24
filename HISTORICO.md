@@ -9,6 +9,37 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Fase 4.1 — Painel de pendências de dados · 24/09/2026 · validada pelo Neto e mesclada (PR #9)
+
+### O que foi feito
+- **Tela Pendências** (menu, todos os perfis, dentro do escopo): o relatório de qualidade
+  da Fase 0 ao vivo, em seis verificações — notas de serviço sem competência, notas
+  consideradas como receita sem categoria, contas sem competência, contas sem
+  categoria, competência fora do padrão (mês inválido, formato torto ou ano além de
+  +10 anos) e fornecedores com grafia mudando só na caixa. Cada uma com contagem e
+  valor por empresa, onde corrigir, e **link para as linhas** pelos filtros de coluna
+  das telas (ex.: Despesas com Competência = "(vazio)"), montado com `url_for`.
+- **Selo "sincronizado há N dias"** na barra de todas as telas: idade do dado mais
+  velho dentro do escopo (último sucesso de cada empresa × tipo em `sincronizacoes`;
+  sem histórico, a gravação mais recente das linhas). Verde até 2 dias, vermelho acima
+  ou se algum par nunca sincronizou; o `title` mostra cada empresa. Leva à tela de
+  Sincronizar (Admin) ou ao painel.
+- Barra em 1366 px: com o item novo e o selo, o menu não cabia; até 1500 px o nome do
+  usuário e o "Fechamento" ao lado do logo somem (a inicial fica, com o nome no `title`).
+  Nenhum item de menu some; linhas visíveis mantidas (Despesas 20).
+- **Achado**: o `{% set itens %}` do menu no `_base.html` sobrescrevia a variável de
+  mesmo nome das telas; renomeado para `itens_menu`.
+- Testes: 267 (12 novos, incluindo seguir o link de cada pendência e conferir que ele
+  leva exatamente às linhas contadas). Golden idêntico.
+
+### Retrato no banco real (24/09/2026, depois da sincronização)
+Notas de serviço sem competência 42 · notas sem categoria consideradas 6 (as de
+retorno/devolução que o Neto vai desconsiderar) · contas sem competência 132 · contas
+sem categoria 59 · competência fora do padrão 2 · grupos de grafia divergente 50.
+Selo: sincronizado hoje. Cálculo do painel: ~170 ms.
+
+---
+
 ## Fase 3 — Identidade visual · 24/09/2026 · validada pelo Neto e mesclada (PR #8)
 
 ### O que foi feito

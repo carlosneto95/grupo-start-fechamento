@@ -1,0 +1,52 @@
+{% extends "_base.html" %}
+{% block titulo %}Pendências — Grupo Start{% endblock %}
+{% block cabecalho %}Pendências de dados{% endblock %}
+{% block cabecalho_acoes %}
+<div class="cartao cartao-linha {{ 'negativo' if abertas else 'positivo' }}">
+    <span class="cartao-rotulo">Em aberto</span>
+    <strong class="cartao-valor">{{ abertas }}</strong>
+    <span class="cartao-nota">de {{ itens|length }} verificações</span>
+</div>
+{% endblock %}
+{% block corpo %}
+{# O que o relatório de qualidade da Fase 0 encontrou, ao vivo. Nada é
+   corrigido aqui: o sistema é espelho do Tiny. Cada cartão diz onde corrigir e
+   leva às linhas pelos filtros de coluna das telas. #}
+<p class="legenda">
+    Contagem dentro das empresas que você enxerga. Clique no número de uma empresa para
+    ver as linhas já filtradas.
+</p>
+<div class="grade-pendencias">
+    {% for p in itens %}
+    <section class="cartao pendencia {{ 'pendencia-aberta' if p.quantidade else 'pendencia-ok' }}">
+        <h2>{{ p.titulo }}</h2>
+        {% if p.quantidade %}
+        <p class="pendencia-total">
+            <a href="{{ url_for(p.rota, **p.parametros()) }}"><strong class="num">{{ p.quantidade }}</strong></a>
+            {% if p.valor %}<span class="num">R$ {{ p.valor|moeda }}</span>{% endif %}
+        </p>
+        <ul class="pendencia-empresas">
+            {% for empresa, (quantidade, valor) in p.por_empresa|dictsort %}
+            <li>
+                <a href="{{ url_for(p.rota, **p.parametros(empresa)) }}">{{ empresa }}</a>
+                <span class="num">{{ quantidade }}</span>
+                {% if valor %}<span class="num suave">R$ {{ valor|moeda }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% if p.exemplos %}
+        <ul class="pendencia-exemplos">
+            {% for rotulo, filtros in p.exemplos %}
+            <li><a href="{{ url_for(p.rota, **filtros) }}" title="{{ rotulo }}">{{ rotulo }}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <p class="pendencia-total"><span class="etiqueta ok">nenhuma</span></p>
+        {% endif %}
+        <p class="legenda">{{ p.explicacao }}</p>
+        <p class="legenda"><strong>Onde corrigir:</strong> {{ p.onde_corrigir }}</p>
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}
