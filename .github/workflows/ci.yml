@@ -33,7 +33,7 @@ jobs:
         run: ruff check .
 
       - name: Ruff (formatação dos arquivos já migrados)
-        run: ruff format --check tests scripts/relatorio_qualidade.py
+        run: ruff format --check tests app/__init__.py app/configuracao.py app/registro.py app/paineis.py app/web app/config/companies.py app.py scripts/relatorio_qualidade.py scripts/medir_desempenho.py
 
       - name: Testes com dados sintéticos
         run: pytest -q -rs

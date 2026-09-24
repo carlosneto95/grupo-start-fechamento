@@ -1,0 +1,260 @@
+"""Monta o que cada tela mostra, a partir dos filtros da URL.
+
+As rotas (app/web/) ficam finas: leem a requisição, chamam uma função daqui e
+entregam o resultado ao template. Toda a regra — que filtro vale, o que entra
+no total, como o dashboard confronta receita e despesa — mora aqui, onde dá
+para testar sem subir servidor.
+
+Cada função recebe `args` (o MultiDict da query string, ou qualquer objeto
+com .get/.getlist/.to_dict) e devolve o dicionário de contexto do template.
+Nada aqui foi recalculado de outro jeito na Fase 1: é o mesmo código que
+estava em app.py, só mudou de endereço — o golden master confere.
+"""
+
+from __future__ import annotations
+
+from app import consulta
+from app.analise_receitas import grades
+from app.centros_de_custo import separar as separar_centros_de_custo
+from app.filtros_coluna import COLUNAS as COLUNAS_FILTRAVEIS
+from app.filtros_coluna import valores as valores_de_coluna
+from app.ordenacao import coluna_e_direcao, ordenar_linhas
+from app.receitas import COLUNAS_ORDENAVEIS as COLUNAS_ORDENAVEIS_NOTAS
+from app.receitas import categorias_conhecidas, listar_notas
+from app.repositorio_contas_pagar import (
+    COLUNAS_ORDENAVEIS,
+    competencias_disponiveis,
+    listar_contas,
+    listar_valores_distintos,
+)
+from app.resumos import TIPOS_ORDENACAO_RESULTADO, arvore_de_gastos
+
+COLUNAS_FILTRO_DESPESAS = list(COLUNAS_FILTRAVEIS["despesas"])
+
+
+def _filtros_da_url(args, colunas) -> dict:
+    """Filtros de coluna vindos da URL: cada coluna manda seus valores marcados
+    repetidos, ex: ?fornecedor=A&fornecedor=B. Coluna sem valor fica de fora."""
+    marcados = {c: [v for v in args.getlist(c) if v] for c in colunas}
+    return {c: v for c, v in marcados.items() if v}
+
+
+def _multi(args, nome) -> list[str]:
+    """Slicer de seleção múltipla: vem como lista repetida na URL."""
+    return [v for v in args.getlist(nome) if v]
+
+
+# --------------------------------------------------------------------------
+# Despesas
+# --------------------------------------------------------------------------
+
+
+def despesas(args) -> dict:
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRO_DESPESAS)
+
+    ordenar = args.get("ordenar") or "data_vencimento"
+    if ordenar not in COLUNAS_ORDENAVEIS:
+        ordenar = "data_vencimento"
+    direcao = "desc" if args.get("direcao") == "desc" else "asc"
+
+    contas = consulta.despesas(filtros_coluna, ordenar=ordenar, direcao=direcao)
+    return {
+        "contas": contas,
+        "total_considerado": sum(c["valor"] or 0 for c in contas if c["considerar_efetivo"]),
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "filtros_coluna": filtros_coluna,
+        # flat=False preserva os valores repetidos dos filtros de coluna ao
+        # remontar links de ordenação.
+        "args_atuais": args.to_dict(flat=False),
+    }
+
+
+# --------------------------------------------------------------------------
+# Receitas (Vendas e Serviços)
+# --------------------------------------------------------------------------
+
+
+def receitas(args, tabela: str) -> dict:
+    """As telas de Vendas e de Serviços são a mesma listagem com o tipo de nota
+    fixo; o que muda é a chave de tabela usada pelos funis (filtros_coluna.py)."""
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS[tabela])
+
+    ordenar = args.get("ordenar") or "data_emissao"
+    if ordenar not in COLUNAS_ORDENAVEIS_NOTAS:
+        ordenar = "data_emissao"
+    direcao = "asc" if args.get("direcao") == "asc" else "desc"
+
+    notas = consulta.LISTAGEM[tabela](filtros_coluna, ordenar=ordenar, direcao=direcao)
+    faturadas = [n for n in notas if n["considerar_efetivo"]]
+    return {
+        "tabela": tabela,
+        "notas": notas,
+        "total_receita": sum(n["valor"] or 0 for n in faturadas),
+        "total_excluido": sum(n["valor"] or 0 for n in notas if not n["considerar_efetivo"]),
+        "quantidade": len(faturadas),
+        "excluidas": len(notas) - len(faturadas),
+        "filtros_coluna": filtros_coluna,
+        "categorias_sugeridas": categorias_conhecidas(),
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "args_atuais": args.to_dict(flat=False),
+    }
+
+
+# --------------------------------------------------------------------------
+# Dashboard
+# --------------------------------------------------------------------------
+
+
+def dashboard(args) -> dict:
+    """Slicers à esquerda, árvore de gastos no meio e os quadros de resultado
+    (Total, Vendas, Serviços) à direita."""
+    filtros = {
+        "empresa": _multi(args, "empresa"),
+        "categoria_primaria": _multi(args, "categoria_primaria"),
+        "subcategoria": _multi(args, "subcategoria"),
+    }
+    # Competência também é slicer aqui: nada marcado significa todas.
+    competencias_marcadas = _multi(args, "competencia")
+    competencias_sel = set(competencias_marcadas) or None
+
+    # As colunas do banco vão em `filtros`; a competência é tratada à parte
+    # porque as notas guardam a delas noutra coluna (com o ajuste manual).
+    contas = listar_contas({k: v for k, v in filtros.items() if v}, competencias=competencias_sel)
+    filtros["competencia"] = competencias_marcadas  # só para o template marcar os itens
+    consideradas = [c for c in contas if c["considerar_efetivo"]]
+
+    # Receita acompanha empresa e competência; categoria/subcategoria da despesa
+    # não se aplicam às notas, que têm vocabulário próprio de categoria.
+    notas = listar_notas(
+        {"empresa": filtros["empresa"]} if filtros["empresa"] else {},
+        competencias=competencias_sel,
+    )
+    faturadas = [n for n in notas if n["considerar_efetivo"]]
+
+    total_receita = sum(n["valor"] or 0 for n in faturadas)
+    total_despesa = sum(c["valor"] or 0 for c in consideradas)
+
+    ordenar_tabela, direcao_tabela = coluna_e_direcao(
+        {"ordenar": args.get("ordenar_tabela"), "direcao": args.get("direcao_tabela")},
+        TIPOS_ORDENACAO_RESULTADO,
+        "movimento",
+        "desc",
+    )
+
+    # Vendas x Serviços, com o ADM GERAL rateado entre os dois. A ordenação do
+    # cabeçalho vale para os dois quadros de uma vez — são a mesma tabela
+    # partida em dois, não faria sentido ordenar cada uma por um critério.
+    def ordenada(linhas):
+        return ordenar_linhas(
+            linhas, ordenar_tabela, direcao_tabela, TIPOS_ORDENACAO_RESULTADO, "movimento"
+        )
+
+    blocos = separar_centros_de_custo(faturadas, consideradas)
+    blocos["vendas"]["linhas"] = ordenada(blocos["vendas"]["linhas"])
+    blocos["servicos"]["linhas"] = ordenada(blocos["servicos"]["linhas"])
+
+    return {
+        "secao": "dashboard",
+        "arvore": arvore_de_gastos(consideradas),
+        "blocos": blocos,
+        "ordenar_tabela": ordenar_tabela,
+        "direcao_tabela": direcao_tabela,
+        "total_receita": total_receita,
+        "total_despesa": total_despesa,
+        "resultado": total_receita - total_despesa,
+        "margem": ((total_receita - total_despesa) / total_receita * 100) if total_receita else 0,
+        "quantidade_notas": len(faturadas),
+        "quantidade_contas": len(consideradas),
+        "filtros": filtros,
+        "opcoes": {
+            "competencia": competencias_disponiveis(),
+            "empresa": listar_valores_distintos("empresa"),
+            "categoria_primaria": listar_valores_distintos("categoria_primaria"),
+            "subcategoria": listar_valores_distintos("subcategoria"),
+        },
+        "args_atuais": args.to_dict(flat=False),
+    }
+
+
+# --------------------------------------------------------------------------
+# Análise de receitas
+# --------------------------------------------------------------------------
+
+
+def analise_receitas(args) -> dict:
+    """Faturamento com a categoria como espinha dorsal. Ao contrário do
+    Dashboard, não entra despesa nem rateio: a pergunta é de onde vem o
+    dinheiro e em que mês ele parou de vir."""
+    competencias_marcadas = _multi(args, "competencia")
+    tipos_marcados = _multi(args, "tipo_nota")
+    categorias_marcadas = _multi(args, "categoria_primaria_efetiva")
+
+    notas = listar_notas(
+        {"tipo_nota": tipos_marcados} if tipos_marcados else {},
+        competencias=set(competencias_marcadas) or None,
+        categorias=set(categorias_marcadas) or None,
+    )
+    faturadas = [n for n in notas if n["considerar_efetivo"]]
+
+    # As opções dos slicers saem do universo INTEIRO, não do recorte filtrado:
+    # os slicers do dashboard não cascateiam (decisão de 24/08/2026), e sem isso
+    # marcar uma categoria apagaria as outras da lista.
+    todas = [n for n in listar_notas({}) if n["considerar_efetivo"]]
+
+    return {
+        "secao": "analise_receitas",
+        "grade": grades(faturadas),
+        "filtros": {
+            "competencia": competencias_marcadas,
+            "tipo_nota": tipos_marcados,
+            "categoria_primaria_efetiva": categorias_marcadas,
+        },
+        "opcoes": {
+            "competencia": sorted(
+                {n["competencia_efetiva"] for n in todas if n["competencia_efetiva"]},
+                key=lambda c: (c[3:], c[:2]),
+            ),
+            "tipo_nota": sorted({n["tipo_nota"] for n in todas if n["tipo_nota"]}),
+            "categoria_primaria_efetiva": sorted(
+                {
+                    (n["categoria_primaria_efetiva"] or "").strip()
+                    for n in todas
+                    if (n["categoria_primaria_efetiva"] or "").strip()
+                }
+            ),
+        },
+    }
+
+
+# --------------------------------------------------------------------------
+# Lista do funil de coluna (AJAX)
+# --------------------------------------------------------------------------
+
+
+def valores_filtro(args) -> tuple[dict, int]:
+    """Lista de um funil, em cascata como no Excel: os valores saem das linhas
+    que sobrevivem aos filtros das OUTRAS colunas. O filtro da própria coluna
+    é retirado de propósito — senão, ao marcar um valor, a lista passaria a ter
+    só ele e nunca mais daria para acrescentar outro.
+
+    Devolve (corpo, status_http)."""
+    tabela = args.get("tabela", "")
+    coluna = args.get("coluna", "")
+    if tabela not in COLUNAS_FILTRAVEIS:
+        return {"erro": f"tabela desconhecida: {tabela}"}, 400
+
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS[tabela])
+    selecionados = filtros_coluna.pop(coluna, [])
+    try:
+        dados = valores_de_coluna(
+            tabela,
+            coluna,
+            consulta.linhas(tabela, filtros_coluna),
+            (args.get("q") or "").strip(),
+            selecionados,
+        )
+    except ValueError as e:
+        return {"erro": str(e)}, 400
+    return dados, 200

@@ -206,16 +206,14 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
     """Roda todos os cenários sobre uma cópia de `caminho_db` e devolve a fotografia."""
     from flask import template_rendered
 
-    from tests.conftest import carregar_app_web
+    from tests.conftest import cliente_para
 
     with _banco_temporario(Path(caminho_db)) as copia:
         with sqlite3.connect(copia) as conn:
             competencias = _competencias_fechadas(conn, ate)
 
-        web = carregar_app_web()
-        app = web.app
-        app.config["TESTING"] = True
-        cliente = app.test_client()
+        cliente = cliente_para(copia)
+        app = cliente.application
         capturados: list[dict] = []
 
         def receptor(sender, template, context, **extra):

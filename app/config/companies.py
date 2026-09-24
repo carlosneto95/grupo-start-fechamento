@@ -1,11 +1,16 @@
-"""Carrega a configuração das 3 empresas (mesmo ERP Tiny, contas separadas) a partir do .env."""
-import os
-from dataclasses import dataclass
-from pathlib import Path
-from dotenv import load_dotenv
+"""Carrega as 3 contas do Tiny (mesmo ERP, contas separadas) a partir do .env.
 
-RAIZ = Path(__file__).resolve().parent.parent.parent
-load_dotenv(RAIZ / ".env")
+Os nomes seguem o prefixo do projeto: GSF_EMPRESA1_NOME, GSF_EMPRESA1_TINY_API_TOKEN...
+A leitura passa por `app.configuracao.variaveis()`, que lê o arquivo direto e
+NÃO copia os tokens para `os.environ` — no PythonAnywhere o processo é
+compartilhado com outros sistemas (ver a explicação em app/configuracao.py).
+"""
+
+from dataclasses import dataclass
+
+from app.configuracao import variaveis
+
+EMPRESAS = ("EMPRESA1", "EMPRESA2", "EMPRESA3")
 
 
 @dataclass
@@ -24,18 +29,25 @@ class CompanyConfig:
     def has_http_credentials(self) -> bool:
         return bool(self.tiny_user and self.tiny_pass)
 
+    def __repr__(self) -> str:
+        # O repr padrão do dataclass imprimiria o token num log ou traceback.
+        return f"CompanyConfig(key={self.key!r}, nome={self.nome!r}, token={'***' if self.tiny_api_token else None})"
 
-def _load_company(prefix: str) -> CompanyConfig:
+
+def _load_company(prefix: str, v: dict) -> CompanyConfig:
+    def ler(campo):
+        return v.get(f"GSF_{prefix}_{campo}") or None
+
     return CompanyConfig(
         key=prefix,
-        nome=os.getenv(f"{prefix}_NOME", prefix),
-        tiny_api_token=os.getenv(f"{prefix}_TINY_API_TOKEN") or None,
-        tiny_user=os.getenv(f"{prefix}_TINY_USER") or None,
-        tiny_pass=os.getenv(f"{prefix}_TINY_PASS") or None,
+        nome=ler("NOME") or prefix,
+        tiny_api_token=ler("TINY_API_TOKEN"),
+        tiny_user=ler("TINY_USER"),
+        tiny_pass=ler("TINY_PASS"),
     )
 
 
 def load_companies() -> list[CompanyConfig]:
-    prefixes = ["EMPRESA1", "EMPRESA2", "EMPRESA3"]
-    companies = [_load_company(p) for p in prefixes]
+    v = variaveis()
+    companies = [_load_company(p, v) for p in EMPRESAS]
     return [c for c in companies if c.has_api_token or c.has_http_credentials]

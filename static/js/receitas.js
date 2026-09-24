@@ -73,7 +73,9 @@ function abrirEdicao(celula) {
         corpo[campo] = novo; // string vazia limpa o ajuste
 
         try {
-            const resp = await fetch("/receitas/ajustar", {
+            // Destino vem do servidor (data-ajustar na tabela), nunca fixo.
+            const destino = document.getElementById("tabela-notas").dataset.ajustar;
+            const resp = await fetch(destino, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(corpo),

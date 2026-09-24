@@ -18,7 +18,7 @@ repos:
     hooks:
       - id: ruff
       - id: ruff-format
-        files: ^(tests/|scripts/relatorio_qualidade\.py$)
+        files: ^(tests/|app/web/|app/(__init__|configuracao|registro|paineis)\.py$|app/config/companies\.py$|app\.py$|scripts/(relatorio_qualidade|medir_desempenho)\.py$)
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

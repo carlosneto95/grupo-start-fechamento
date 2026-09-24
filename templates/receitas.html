@@ -47,18 +47,18 @@
     </datalist>
 
     <div class="tabela-caixa">
-    <table id="tabela-notas" data-marcar="/receitas/marcar">
+    <table id="tabela-notas" data-marcar="{{ url_for('receitas.marcar') }}" data-ajustar="{{ url_for('receitas.ajustar') }}">
         <thead>
             <tr>
-                {{ col.th(tabela, tabela, "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "numero", "Nº", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "data_emissao", "Emissão", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "cliente_nome", "Cliente", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "valor", "Valor", ordenar, direcao, args_atuais, filtros_coluna, "num", True) }}
-                {{ col.th(tabela, tabela, "descricao_situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "competencia_efetiva", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th(tabela, tabela, "categoria_primaria_efetiva", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "numero", "Nº", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "data_emissao", "Emissão", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "cliente_nome", "Cliente", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "valor", "Valor", ordenar, direcao, args_atuais, filtros_coluna, "num", True) }}
+                {{ col.th(rota, tabela, "descricao_situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "competencia_efetiva", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th(rota, tabela, "categoria_primaria_efetiva", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
                 <th>Marcadores</th>
             </tr>
         </thead>

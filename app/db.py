@@ -91,6 +91,13 @@ CREATE TABLE IF NOT EXISTS trava_sincronizacao (
 """
 
 
+def configurar(caminho: str | Path) -> None:
+    """Define o banco do processo. Chamado por criar_app() com o valor de
+    GSF_BANCO (ou data/app.db); os testes apontam para uma cópia temporária."""
+    global DB_PATH
+    DB_PATH = Path(caminho)
+
+
 def get_conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     # timeout: com empresas sincronizando em paralelo, dois processos podem tentar
