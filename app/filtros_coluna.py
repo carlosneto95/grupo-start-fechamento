@@ -183,7 +183,11 @@ def valores(tabela: str, coluna: str, linhas: list[dict], busca: str = "",
         alvo = busca.casefold()
         brutos = {v for v in brutos if alvo in v.casefold()}
 
-    ordenados = sorted(brutos, key=lambda v: _chave_ordem(v, coluna))
+    # Desempate pelo texto cru: "Fulano" e "FULANO" empatam no casefold, e o
+    # conjunto `brutos` não tem ordem estável entre execuções — sem o
+    # desempate, a lista saía numa ordem diferente a cada processo (achado do
+    # golden master na Fase 0; corrigido na Fase 1 com aval do Neto).
+    ordenados = sorted(brutos, key=lambda v: (_chave_ordem(v, coluna), v))
     mostrar_vazio = tem_vazio and (not busca or busca.casefold() in SEM_VALOR)
 
     # A arvore nao e cortada: ela ja nasce recolhida, entao o custo de ter

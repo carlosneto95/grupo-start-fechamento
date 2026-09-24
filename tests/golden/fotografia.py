@@ -282,15 +282,9 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
                     if empresa and coluna != "empresa":
                         params["empresa"] = empresa
                     r = cliente.get("/api/valores-filtro", query_string=params).get_json()
-                    # Achado da Fase 0: a ordem da lista NÃO é determinística
-                    # quando dois valores diferem só na caixa ("Fulano" e
-                    # "FULANO"). valores() parte de um set (ordem muda a cada
-                    # processo) e ordena por casefold, que empata os dois. Sem
-                    # esta normalização o golden falharia por acaso, não por
-                    # mudança de código. A lista vira conjunto ordenado pelo
-                    # texto cru; total e truncado continuam comparados como são.
-                    if r.get("tipo") == "lista":
-                        r["valores"] = sorted(r["valores"])
+                    # Desde a Fase 1 a ordem da lista é determinística
+                    # (desempate pelo texto cru em filtros_coluna.valores), e
+                    # passa a ser julgada pelo golden como está na tela.
                     cen[f"funil|{tabela}|{coluna}|{empresa or 'todas'}"] = r
 
     return _limpo(foto)

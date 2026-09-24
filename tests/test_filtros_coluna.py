@@ -151,3 +151,15 @@ def test_nota_sem_competencia_aparece_como_vazio(cliente):
 def test_tabela_ou_coluna_invalida_devolve_400(cliente):
     assert cliente.get("/api/valores-filtro?tabela=xpto&coluna=a").status_code == 400
     assert cliente.get("/api/valores-filtro?tabela=despesas&coluna=historico").status_code == 400
+
+
+def test_ordem_nao_depende_do_acaso_quando_so_a_caixa_muda():
+    """Correção da Fase 1: "Fulano" e "FULANO" empatam no casefold; o desempate
+    pelo texto cru dá sempre a mesma ordem, qualquer que seja a do conjunto."""
+    import random
+
+    nomes = ["fulano", "Fulano", "FULANO", "Beltrano", "BELTRANO"]
+    esperado = ["BELTRANO", "Beltrano", "FULANO", "Fulano", "fulano"]
+    for _ in range(20):
+        random.shuffle(nomes)
+        assert valores("despesas", "fornecedor", _linhas(fornecedor=nomes))["valores"] == esperado
