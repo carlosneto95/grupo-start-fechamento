@@ -90,7 +90,17 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
    absorver vira linha própria, visível, em vez de sumir. Entram na Fase 1, cada uma com a
    diferença do golden master explicada linha a linha antes de regerar.
 
+### GitHub (23/09/2026)
+- Repositório **público** https://github.com/carlosneto95/grupo-start-fechamento, criado
+  com o `gh` (instalado via winget). Autor dos commits: e-mail privado do GitHub
+  (`...@users.noreply.github.com`), para o e-mail pessoal não ficar público.
+- Ligados: Secret scanning, Push protection e Dependabot alerts.
+- `main` protegida: só por PR, com os checks `testes` e `segredos` verdes e a branch
+  atualizada; vale também para o administrador; sem force-push e sem apagar a branch.
+  O PR exige 0 aprovações: com um único desenvolvedor, exigir 1 travaria todo merge.
+- CI do PR #1 verde: 83 testes passaram e o golden foi pulado com aviso (o CI não tem o
+  banco); `pip-audit` sem vulnerabilidade conhecida; gitleaks sem vazamento.
+
 ### Pendências
-- Proteger a `main` no GitHub, ligar Secret scanning, Push protection e Dependabot alerts.
 - Rodar a sincronização das 3 empresas **depois** de validado o golden (o golden usa a
   cópia congelada, então sincronizar não o invalida).
