@@ -74,3 +74,17 @@ def test_dashboard_sem_slicer_inclui_nota_sem_competencia(cliente):
     Registrado para o relatório; o golden master do banco real mostra o tamanho."""
     c = _contexto(cliente, "/dashboard")
     assert c["total_receita"] == pytest.approx(20000 + 10000 + 1000 + 700)
+
+
+def test_conta_sem_competencia_aparece_como_vazio(cliente, banco_exemplo):
+    """Correção da Fase 1 (item 2): conta com competência vazia não some mais —
+    aparece em Despesas e no funil como "(vazio)", mas não vira opção de mês
+    no slicer do Dashboard."""
+    from tests.conftest import _conta, gravar
+
+    gravar(banco_exemplo, [_conta("ALFA", 90, "COMERCIO-Frete", 55.0, "")])
+    c = _contexto(cliente, "/despesas")
+    assert "90" in {x["id"] for x in c["contas"]}
+    arvore = cliente.get("/api/valores-filtro?tabela=despesas&coluna=competencia").get_json()
+    assert arvore["arvore"][-1]["valor"] == "(vazio)"
+    assert "" not in _contexto(cliente, "/dashboard")["opcoes"]["competencia"]

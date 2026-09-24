@@ -389,7 +389,9 @@ def competencias_disponiveis() -> list[str]:
         das_contas = {
             r[0] for r in conn.execute(
                 f"SELECT DISTINCT competencia FROM contas_pagar "
-                f"WHERE competencia IS NOT NULL AND {FILTRO_SQL_CONTAS}"
+                # Competência vazia passa pelo filtro de visão (aparece em
+                # Despesas), mas não é opção de slicer: não é um mês.
+                f"WHERE TRIM(COALESCE(competencia, '')) <> '' AND {FILTRO_SQL_CONTAS}"
             ).fetchall()
         }
         das_notas = {
