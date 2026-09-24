@@ -39,12 +39,42 @@ db.DB_PATH = _PASTA_SESSAO / "coleta.db"
 CHAVE_TESTE = "chave-de-teste-" + "x" * 32
 
 
-def cliente_para(caminho_db: Path, **config):
+SENHA_TESTE = "SenhaDeTeste123"
+
+
+def criar_usuario(perfil="admin", empresas=(), login=None, trocar=False) -> dict:
+    """Cria um usuário sintético no banco configurado e devolve a linha."""
+    from app import usuarios
+    from app.escopo import SISTEMA
+
+    login = login or f"teste-{perfil}-{'-'.join(sorted(empresas)).lower() or 'todas'}"
+    existente = usuarios._por_login(login)
+    if existente is None:
+        usuarios.criar(
+            SISTEMA, login, f"Usuário {perfil}", perfil, list(empresas), SENHA_TESTE, trocar
+        )
+    return dict(usuarios._por_login(login))
+
+
+def entrar(cliente, usuario: dict) -> None:
+    """Abre a sessão direto no cookie (sem passar pelo formulário): o teste do
+    formulário de login está em test_seguranca.py."""
+    import time
+
+    with cliente.session_transaction() as s:
+        s["uid"] = usuario["id"]
+        s["sv"] = usuario["sessao_versao"]
+        s["ultimo"] = int(time.time())
+        s.permanent = True
+
+
+def cliente_para(caminho_db: Path, perfil="admin", empresas=(), csrf=False, logado=True, **config):
     """Cliente de teste do Flask apontando para `caminho_db`.
 
     Ponto ÚNICO de montagem do app nos testes, no golden master e na medição
-    de desempenho. Na Fase 0 ele carregava o app.py; desde a Fase 1 chama a
-    fábrica criar_app() — e o golden continuou medindo a mesma coisa.
+    de desempenho. Desde a Fase 2 o sistema exige login: por padrão o cliente
+    entra como Admin (vê as três empresas — é o que o golden fotografa) e com
+    o CSRF desligado; os testes de segurança ligam o CSRF e trocam o perfil.
 
     Os logs vão para a pasta temporária da sessão, não para logs/ do projeto."""
     from app import criar_app
@@ -56,10 +86,18 @@ def cliente_para(caminho_db: Path, **config):
             "PASTA_LOGS": str(_PASTA_SESSAO / "logs"),
             "PASTA_BACKUPS": str(Path(caminho_db).parent / "backups"),
             "TESTING": True,
+            "WTF_CSRF_ENABLED": csrf,
+            # O cliente de teste fala HTTP; cookie Secure não voltaria.
+            "SESSION_COOKIE_SECURE": False,
             **config,
         }
     )
-    return app.test_client()
+    cliente = app.test_client()
+    if logado:
+        with app.app_context():
+            usuario = criar_usuario(perfil, empresas)
+        entrar(cliente, usuario)
+    return cliente
 
 
 # --------------------------------------------------------------------------

@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import logging
 
-from flask import Flask, render_template
+from flask import Flask, g, render_template, request
+from flask_wtf.csrf import CSRFError, CSRFProtect
 from werkzeug.exceptions import HTTPException
 
-from app import configuracao, db, registro
+from app import configuracao, db, registro, seguranca
+
+csrf = CSRFProtect()
 
 log = logging.getLogger("app")
 
@@ -44,8 +47,26 @@ def criar_app(sobrescrever: dict | None = None) -> Flask:
     db.configurar(app.config["CAMINHO_BANCO"], app.config["PASTA_BACKUPS"])
     db.migrar()
 
+    # CSRF em todo POST, inclusive os fetch JSON (token no cabeçalho X-CSRFToken).
+    csrf.init_app(app)
+    # A cada requisição: sessão -> escopo (perfil e empresas lidos do banco).
+    app.before_request(seguranca.carregar_escopo)
+    app.after_request(seguranca.aplicar_headers)
+
     _registrar_filtros(app)
     _registrar_erros(app)
+
+    @app.context_processor
+    def _contexto():
+        # O template esconde o que o perfil não pode fazer. Esconder é só
+        # conforto: a trava é o decorador na rota (app/seguranca.py).
+        escopo = g.get("escopo")
+        return {
+            "escopo": escopo,
+            "usuario_nome": g.get("usuario_nome"),
+            "pode_escrever": bool(escopo and escopo.pode_escrever),
+            "eh_admin": bool(escopo and escopo.eh_admin),
+        }
 
     from app import web
 
@@ -68,6 +89,18 @@ def _registrar_erros(app: Flask) -> None:
     @app.errorhandler(404)
     def _404(_e):
         return pagina(404, "Página não encontrada", "O endereço não existe.")
+
+    @app.errorhandler(403)
+    def _403(_e):
+        if request.is_json or request.method != "GET":
+            return {"ok": False, "erro": "sem permissão"}, 403
+        return pagina(403, "Acesso não autorizado", "Esta ação não é permitida para o seu perfil.")
+
+    @app.errorhandler(CSRFError)
+    def _csrf(_e):
+        if request.is_json or request.path.startswith("/api/"):
+            return {"ok": False, "erro": "formulário expirado — recarregue a página"}, 400
+        return pagina(400, "Formulário expirado", "Recarregue a página e tente de novo.")
 
     @app.errorhandler(Exception)
     def _erro(e):

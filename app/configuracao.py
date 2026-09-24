@@ -18,6 +18,7 @@ Mesmo padrão de `sistema/__init__.py:_variaveis` do Controle de Impostos.
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -53,18 +54,25 @@ def config_flask(sobrescrever: dict | None = None) -> dict:
     `sobrescrever` é para os testes: eles passam chave e banco próprios em vez
     de depender do .env da máquina."""
     v = variaveis()
+    prefixo = (v.get("GSF_PREFIXO") or "").rstrip("/")
     cfg = {
         "SECRET_KEY": v.get("GSF_SECRET_KEY", ""),
         "CAMINHO_BANCO": v.get("GSF_BANCO") or str(RAIZ / "data" / "app.db"),
         "PASTA_LOGS": v.get("GSF_LOGS") or str(RAIZ / "logs"),
         # Pasta dos backups automáticos feitos antes de cada migração.
         "PASTA_BACKUPS": v.get("GSF_BACKUPS") or str(RAIZ / "backups"),
-        # Quem aparece como autor na auditoria enquanto não existe login (a
-        # Fase 2 troca pelo usuário da sessão).
-        "USUARIO_PADRAO": v.get("GSF_USUARIO_PADRAO") or "local",
+        # Prefixo do sistema em produção (ex.: "/resultado"); vazio no local.
+        "PREFIXO": prefixo,
         # Cookie com nome próprio: no PythonAnywhere há outros apps no mesmo
-        # domínio, e o nome padrão "session" faria um derrubar o outro.
+        # domínio, e o nome padrão "session" faria um derrubar o outro. O
+        # caminho restringe o cookie ao prefixo: ele nem é enviado aos outros.
         "SESSION_COOKIE_NAME": "gsf_sessao",
+        "SESSION_COOKIE_PATH": prefixo or "/",
+        # Sessão expira após 60 min parada (seguranca.MINUTOS_INATIVIDADE
+        # confere a inatividade; isto limita a vida do cookie).
+        "PERMANENT_SESSION_LIFETIME": timedelta(minutes=60),
+        # CSRF (Flask-WTF): o token vale enquanto a sessão durar.
+        "WTF_CSRF_TIME_LIMIT": None,
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         "SESSION_COOKIE_SECURE": v.get("GSF_COOKIE_SEGURO", "1") != "0",

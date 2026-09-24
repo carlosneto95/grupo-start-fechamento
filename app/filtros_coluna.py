@@ -67,6 +67,16 @@ COLUNAS["receitas_vendas"] = {
 }
 COLUNAS["receitas_servicos"] = dict(COLUNAS["receitas_vendas"])
 
+# Tela de Admin -> Usuários (Fase 2). Só Admin chega à lista: o painel e a API
+# recusam a tabela para outro perfil.
+COLUNAS["usuarios"] = {
+    "login": None,
+    "nome": None,
+    "perfil": None,
+    "empresas_texto": None,
+    "situacao": None,
+}
+
 # Teto de itens devolvidos. Com a busca embutida, ninguém precisa rolar mais que
 # isso — e evita despejar 1.500 checkboxes de uma vez no navegador.
 LIMITE = 400

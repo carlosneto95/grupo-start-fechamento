@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app import auditoria
+from app.escopo import SISTEMA, clausula, exigir_admin, exigir_escrita
 from app.db import get_conn
 from app.dinheiro import para_centavos, para_reais
 from app.ordenacao import ordenar_linhas
@@ -35,6 +36,16 @@ SITUACOES_SEM_RECEITA = {"CANCELADA", "REJEITADA", "DENEGADA", "EXCLUIDA", "PEND
 
 # Rótulo das notas sem categoria — precisa ser o mesmo no filtro e na tela.
 SEM_CATEGORIA_ROTULO = "(sem categoria)"
+
+# Colunas lidas pelas listagens de notas: todas menos o CPF/CNPJ do cliente.
+COLUNAS_LISTAGEM_NOTAS = ", ".join(
+    [
+        "empresa", "tipo_nota", "id", "numero", "serie", "numero_rps", "data_emissao",
+        "cliente_nome", "valor_centavos", "situacao", "descricao_situacao", "vendedor",
+        "categoria", "categoria_primaria", "subcategoria", "marcadores", "competencia",
+        "competencia_manual", "categoria_manual", "considerar_manual", "atualizado_em",
+    ]
+)
 
 COLUNAS = [
     "empresa", "tipo_nota", "id", "numero", "serie", "numero_rps", "data_emissao",
@@ -179,10 +190,13 @@ def linha_de_servico(resumo: dict, detalhe: dict, empresa: str) -> dict:
     }
 
 
-def upsert_notas(linhas: list[dict]) -> None:
+def upsert_notas(escopo, linhas: list[dict]) -> None:
     """Grava preservando os ajustes manuais (competencia_manual, categoria_manual,
     considerar_manual): nenhuma delas está em COLUNAS, então o ON CONFLICT não as
-    toca — ressincronizar não pode apagar o que o usuário editou."""
+    toca — ressincronizar não pode apagar o que o usuário editou.
+
+    Só a sincronização e os scripts de carga gravam aqui (escopo SISTEMA)."""
+    exigir_admin(escopo)
     if not linhas:
         return
     agora = datetime.now(timezone.utc).isoformat()
@@ -221,13 +235,15 @@ def upsert_notas(linhas: list[dict]) -> None:
         conn.close()
 
 
-def definir_ajuste(empresa: str, tipo_nota: str, id_nota: str,
+def definir_ajuste(escopo, empresa: str, tipo_nota: str, id_nota: str,
                    competencia: str | None = None, categoria: str | None = None) -> bool:
     """Grava a edição manual, com auditoria. String vazia limpa o ajuste (volta
     ao do ERP). Devolve False se a nota não existe.
 
     O formato da competência (MM/AAAA, mês 01-12) é garantido pelo CHECK da
     migração 2: valor torto levanta sqlite3.IntegrityError e nada é gravado."""
+    if not exigir_escrita(escopo, empresa):
+        return False  # a rota responde 404: não confirma que a nota existe
     campos: dict[str, str | None] = {}
     if competencia is not None:
         campos["competencia_manual"] = competencia or None
@@ -263,10 +279,12 @@ def definir_ajuste(empresa: str, tipo_nota: str, id_nota: str,
         conn.close()
 
 
-def definir_marcacao(empresa: str, tipo_nota: str, id_nota: str,
+def definir_marcacao(escopo, empresa: str, tipo_nota: str, id_nota: str,
                      considerar: bool | None) -> bool:
     """Grava o override da linha, com auditoria. None devolve a nota ao padrão
     da situação. Devolve False se a nota não existe."""
+    if not exigir_escrita(escopo, empresa):
+        return False  # a rota responde 404: não confirma que a nota existe
     valor = None if considerar is None else int(bool(considerar))
     conn = get_conn()
     try:
@@ -325,16 +343,19 @@ def _enriquecer(linha: dict) -> dict:
     return linha
 
 
-def mapa_por_id(empresa: str) -> dict[tuple[str, str], dict]:
+def mapa_por_id(escopo, empresa: str) -> dict[tuple[str, str], dict]:
+    filtro, params = clausula(escopo)
     conn = get_conn()
     try:
-        linhas = conn.execute("SELECT * FROM notas WHERE empresa = ?", (empresa,)).fetchall()
+        linhas = conn.execute(
+            f"SELECT * FROM notas WHERE empresa = ? AND {filtro}", (empresa, *params)
+        ).fetchall()
     finally:
         conn.close()
     return {(l["tipo_nota"], str(l["id"])): _enriquecer(dict(l)) for l in linhas}
 
 
-def listar_notas(filtros: dict | None = None, competencias: set[str] | None = None,
+def listar_notas(escopo, filtros: dict | None = None, competencias: set[str] | None = None,
                  ordenar: str | None = None, direcao: str = "desc",
                  categorias: set[str] | None = None,
                  consideracao: set[str] | None = None,
@@ -372,7 +393,13 @@ def listar_notas(filtros: dict | None = None, competencias: set[str] | None = No
         condicoes.append("(" + " OR ".join(partes) + ")")
 
     condicoes.append(FILTRO_SQL_NOTAS)
-    sql = "SELECT * FROM notas WHERE " + " AND ".join(condicoes)
+    # Só as empresas do escopo. clausula() erra se o escopo faltar.
+    filtro, params = clausula(escopo)
+    condicoes.append(filtro)
+    parametros.extend(params)
+    # Colunas explícitas: fica de fora o CPF/CNPJ do cliente (LGPD —
+    # minimização). Nenhuma tela o mostra, então nenhuma listagem o lê.
+    sql = f"SELECT {COLUNAS_LISTAGEM_NOTAS} FROM notas WHERE " + " AND ".join(condicoes)
 
     conn = get_conn()
     try:
@@ -433,7 +460,7 @@ def sincronizar_notas(cliente, empresa_nome: str, data_ini, data_fim, progresso=
     total = len(tarefas)
     avisar(0, total, "Buscando detalhe de cada nota...")
 
-    ja_gravadas = mapa_por_id(empresa_nome)
+    ja_gravadas = mapa_por_id(SISTEMA, empresa_nome)
     lote, novas, atualizadas = [], 0, 0
 
     for i, (tipo, resumo) in enumerate(tarefas, start=1):
@@ -452,13 +479,13 @@ def sincronizar_notas(cliente, empresa_nome: str, data_ini, data_fim, progresso=
 
         lote.append(linha)
         if len(lote) >= 25:
-            upsert_notas(lote)
+            upsert_notas(SISTEMA, lote)
             lote = []
         avisar(i, total, "Buscando detalhe de cada nota...")
 
-    upsert_notas(lote)
+    upsert_notas(SISTEMA, lote)
 
-    receita = sum(l["valor"] or 0 for l in listar_notas({"empresa": empresa_nome})
+    receita = sum(l["valor"] or 0 for l in listar_notas(SISTEMA, {"empresa": empresa_nome})
                   if l["considerar_efetivo"])
     return {
         "encontradas": total,
@@ -472,44 +499,38 @@ def sincronizar_notas(cliente, empresa_nome: str, data_ini, data_fim, progresso=
 
 
 
-def valores_distintos(coluna: str) -> list[str]:
-    permitidas = {"empresa", "tipo_nota", "descricao_situacao", "vendedor"}
-    if coluna not in permitidas:
-        raise ValueError(f"coluna inválida: {coluna}")
-    conn = get_conn()
-    try:
-        return [
-            r[0] for r in conn.execute(
-                f"SELECT DISTINCT {coluna} FROM notas "
-                f"WHERE {coluna} IS NOT NULL AND {FILTRO_SQL_NOTAS} ORDER BY {coluna}"
-            ).fetchall()
-        ]
-    finally:
-        conn.close()
 
 
-def categorias_conhecidas() -> list[str]:
+def categorias_conhecidas(escopo) -> list[str]:
     """Categorias PRIMÁRIAS disponíveis para escolher ao editar uma nota.
 
     Junta as que aparecem em notas e em contas a pagar, porque as duas pontas
     usam o mesmo vocabulário no Tiny e é assim que o dashboard as confronta.
-    Só a primária: a subcategoria não é usada nesta coluna."""
+    Só a primária: a subcategoria não é usada nesta coluna.
+
+    Do escopo: um usuário de uma empresa não vê o vocabulário de outra."""
+    filtro, params = clausula(escopo)
     conn = get_conn()
     try:
         de_notas = {
             r[0] for r in conn.execute(
-                "SELECT DISTINCT categoria_primaria FROM notas WHERE categoria_primaria IS NOT NULL"
+                "SELECT DISTINCT categoria_primaria FROM notas"
+                f" WHERE categoria_primaria IS NOT NULL AND {filtro}",
+                params,
             ).fetchall()
         }
         manuais = {
             r[0] for r in conn.execute(
-                "SELECT DISTINCT categoria_manual FROM notas WHERE categoria_manual IS NOT NULL"
+                "SELECT DISTINCT categoria_manual FROM notas"
+                f" WHERE categoria_manual IS NOT NULL AND {filtro}",
+                params,
             ).fetchall()
         }
         de_contas = {
             r[0] for r in conn.execute(
                 "SELECT DISTINCT categoria_primaria FROM contas_pagar "
-                "WHERE categoria_primaria IS NOT NULL"
+                f"WHERE categoria_primaria IS NOT NULL AND {filtro}",
+                params,
             ).fetchall()
         }
     finally:

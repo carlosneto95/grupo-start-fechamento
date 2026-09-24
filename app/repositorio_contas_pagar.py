@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app import auditoria
+from app.escopo import clausula, exigir_admin, exigir_escrita
 from app.db import get_conn
 from app.dinheiro import para_centavos, para_reais
 from app.ordenacao import ordenar_linhas
@@ -69,9 +70,12 @@ COLUNAS_DATA_FILTRAVEIS = {"data_emissao", "data_vencimento", "data_liquidacao"}
 
 
 
-def upsert_contas(linhas: list[dict]) -> None:
+def upsert_contas(escopo, linhas: list[dict]) -> None:
     """Insere/atualiza contas, preservando o override manual (considerar_manual)
-    que já existir para linhas repetidas (re-extração não deve apagar sua escolha)."""
+    que já existir para linhas repetidas (re-extração não deve apagar sua escolha).
+
+    Só a sincronização e os scripts de carga gravam aqui (escopo SISTEMA)."""
+    exigir_admin(escopo)
     if not linhas:
         return
 
@@ -101,22 +105,26 @@ def upsert_contas(linhas: list[dict]) -> None:
         conn.close()
 
 
-def mapa_por_id(empresa: str) -> dict[str, dict]:
+def mapa_por_id(escopo, empresa: str) -> dict[str, dict]:
     """{id: linha} do que já está gravado, para comparar com o que veio da API."""
+    filtro, params = clausula(escopo)
     conn = get_conn()
     try:
         linhas = conn.execute(
-            "SELECT * FROM contas_pagar WHERE empresa = ?", (empresa,)
+            f"SELECT * FROM contas_pagar WHERE empresa = ? AND {filtro}", (empresa, *params)
         ).fetchall()
     finally:
         conn.close()
     return {str(l["id"]): _em_reais(dict(l)) for l in linhas}
 
 
-def definir_manual(empresa: str, id_conta: str, considerar: bool | None) -> bool:
+def definir_manual(escopo, empresa: str, id_conta: str, considerar: bool | None) -> bool:
     """Grava o override Considerar/Desconsiderar da conta, com auditoria.
 
-    Devolve False se a conta não existe (nada é gravado nem auditado)."""
+    Devolve False se a conta não existe OU se o escopo não pode escrever nessa
+    empresa: a rota responde 404 nos dois casos, sem confirmar que existe."""
+    if not exigir_escrita(escopo, empresa):
+        return False
     valor = None if considerar is None else (1 if considerar else 0)
     conn = get_conn()
     try:
@@ -153,7 +161,9 @@ def listar_regras_exclusao() -> dict[str, list[str]]:
     return resultado
 
 
-def definir_regras_exclusao(tipo: str, valores: list[str]) -> None:
+def definir_regras_exclusao(escopo, tipo: str, valores: list[str]) -> None:
+    """Regra de exclusão vale para as TRÊS empresas: só Admin altera."""
+    exigir_admin(escopo)
     if tipo not in ("categoria_primaria", "subcategoria"):
         raise ValueError(f"tipo inválido: {tipo}")
 
@@ -176,15 +186,19 @@ def definir_regras_exclusao(tipo: str, valores: list[str]) -> None:
         conn.close()
 
 
-def listar_valores_distintos(coluna: str) -> list[str]:
+def listar_valores_distintos(escopo, coluna: str) -> list[str]:
+    # Lista branca: a coluna entra no SQL por f-string, então só passa nome
+    # que está em COLUNAS_FILTRO_VALIDAS (escrito no código).
     if coluna not in COLUNAS_FILTRO_VALIDAS:
         raise ValueError(f"coluna inválida: {coluna}")
+    filtro, params = clausula(escopo)
 
     conn = get_conn()
     try:
         linhas = conn.execute(
             f"SELECT DISTINCT {coluna} FROM contas_pagar "
-            f"WHERE {coluna} IS NOT NULL AND {FILTRO_SQL_CONTAS} ORDER BY {coluna}"
+            f"WHERE {coluna} IS NOT NULL AND {FILTRO_SQL_CONTAS} AND {filtro} ORDER BY {coluna}",
+            params,
         ).fetchall()
     finally:
         conn.close()
@@ -218,6 +232,7 @@ def _considerar_efetivo(linha: dict, regras: dict[str, list[str]]) -> bool:
 
 
 def listar_contas(
+    escopo,
     filtros: dict | None = None,
     filtros_data: dict | None = None,
     ordenar: str | None = None,
@@ -259,6 +274,10 @@ def listar_contas(
 
     # Só o período que o sistema exibe — o resto continua no banco, mas fora da visão.
     condicoes.append(FILTRO_SQL_CONTAS)
+    # E só as empresas do escopo. clausula() erra se o escopo faltar.
+    filtro, params = clausula(escopo)
+    condicoes.append(filtro)
+    parametros.extend(params)
 
     # Colunas explícitas em vez de SELECT *: o `historico` é texto livre longo,
     # nenhuma listagem o usa, e trazê-lo nas 15 mil linhas era o maior custo
@@ -314,11 +333,12 @@ def listar_contas(
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO, "data_vencimento")
 
 
-def competencias_disponiveis() -> list[str]:
+def competencias_disponiveis(escopo) -> list[str]:
     """Competências existentes (despesas + receitas), em ordem cronológica.
 
     Junta as duas pontas porque o slicer do dashboard filtra os dois lados: um
     mês que só tem receita precisa aparecer na lista."""
+    filtro, params = clausula(escopo)
     conn = get_conn()
     try:
         das_contas = {
@@ -326,7 +346,8 @@ def competencias_disponiveis() -> list[str]:
                 f"SELECT DISTINCT competencia FROM contas_pagar "
                 # Competência vazia passa pelo filtro de visão (aparece em
                 # Despesas), mas não é opção de slicer: não é um mês.
-                f"WHERE TRIM(COALESCE(competencia, '')) <> '' AND {FILTRO_SQL_CONTAS}"
+                f"WHERE TRIM(COALESCE(competencia, '')) <> '' AND {FILTRO_SQL_CONTAS} AND {filtro}",
+                params,
             ).fetchall()
         }
         das_notas = {
@@ -334,6 +355,8 @@ def competencias_disponiveis() -> list[str]:
                 "SELECT DISTINCT COALESCE(competencia_manual, competencia) FROM notas "
                 "WHERE COALESCE(competencia_manual, competencia) IS NOT NULL "
                 f"AND substr(COALESCE(competencia_manual, competencia), 4, 4) >= '{ANO_MINIMO}'"
+                f" AND {filtro}",
+                params,
             ).fetchall()
         }
     finally:

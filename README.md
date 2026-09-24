@@ -47,6 +47,32 @@ copy .env.example .env          (preencher GSF_SECRET_KEY e os tokens do Tiny)
 Na primeira subida, o sistema aplica as migrações pendentes com backup
 verificado em `backups/`.
 
+## Acesso
+
+Todo acesso exige login. Perfis: **Admin** (as três empresas, regras de
+exclusão, sincronização e usuários), **Financeiro** (empresas atribuídas; marca
+e ajusta) e **Leitura** (empresas atribuídas; só consulta). O primeiro Admin é
+criado pelo terminal; os demais, na tela Usuários:
+
+```
+.venv\Scripts\python scripts\criar_usuario.py --login fulano --nome "Fulano" --perfil admin
+.venv\Scripts\python scripts\criar_usuario.py --login fulano --redefinir-senha
+```
+
+A senha é digitada sem aparecer na tela. Usuário criado pela tela recebe senha
+provisória e é obrigado a trocá-la no primeiro acesso.
+
+## Backups
+
+- Antes de toda migração e de toda gravação em massa: cópia verificada
+  (`PRAGMA integrity_check`) em `backups/`, fora da pasta servida.
+- `scripts/tarefa_diaria.py` faz um backup diário e apaga os diários com mais
+  de 30 dias (os de migração ficam).
+- Cópia fora do servidor: baixe o arquivo mais recente de `backups/` pela aba
+  Files do PythonAnywhere (ou pela API de arquivos dele) e guarde num local
+  com acesso restrito. O arquivo tem dados financeiros e pessoais: nunca em
+  pasta compartilhada nem em anexo de e-mail.
+
 ## Sincronização
 
 ```

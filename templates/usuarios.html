@@ -1,0 +1,51 @@
+{% extends "_base.html" %}
+{% import "_filtro_coluna.html" as col %}
+{% block titulo %}Usuários — Grupo Start{% endblock %}
+{% block cabecalho %}Usuários{% endblock %}
+{% block corpo %}
+{# Tabela ordenável e filtrável pelo cabeçalho, como toda tabela do sistema
+   (CLAUDE.md). A lista do funil vem de /api/valores-filtro?tabela=usuarios,
+   que só responde para Admin. #}
+<form method="get" id="form-tabela">
+    <div class="barra-ferramentas">
+        {% if filtros_coluna %}
+        <a class="limpar-filtros" href="{{ url_for('admin.usuarios_lista') }}">
+            Limpar {{ filtros_coluna|length }} filtro(s)
+        </a>
+        {% endif %}
+        <a class="botao-principal" href="{{ url_for('admin.usuario_novo') }}">Novo usuário</a>
+    </div>
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+    <div class="tabela-caixa">
+    <table>
+        <thead>
+            <tr>
+                {{ col.th("admin.usuarios_lista", "usuarios", "login", "Login", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("admin.usuarios_lista", "usuarios", "nome", "Nome", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("admin.usuarios_lista", "usuarios", "perfil", "Perfil", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("admin.usuarios_lista", "usuarios", "empresas_texto", "Empresas", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("admin.usuarios_lista", "usuarios", "situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                <th>Último acesso</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td><a href="{{ url_for('admin.usuario_editar', usuario_id=u.id) }}">{{ u.login }}</a></td>
+                <td>{{ u.nome }}</td>
+                <td>{{ u.perfil }}</td>
+                <td>{{ u.empresas_texto }}</td>
+                <td><span class="etiqueta">{{ u.situacao }}</span></td>
+                <td>{{ (u.ultimo_login or "")[:16]|replace("T", " ") }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/filtro-coluna.js') }}"></script>
+{% endblock %}

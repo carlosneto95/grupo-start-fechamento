@@ -277,6 +277,10 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
         from app.filtros_coluna import COLUNAS
 
         for tabela, colunas in COLUNAS.items():
+            # Usuários (Fase 2) não são dado do fechamento: o golden fotografa
+            # números, e esta tabela só teria o usuário sintético do teste.
+            if tabela == "usuarios":
+                continue
             for coluna in colunas:
                 for empresa in (None, "MSV"):
                     params = {"tabela": tabela, "coluna": coluna}

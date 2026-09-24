@@ -2,20 +2,31 @@
 
 import sqlite3
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, g, jsonify, redirect, render_template, request, url_for
 
-from app import paineis
+from app import paineis, validacao
 from app.receitas import definir_ajuste, definir_marcacao
+from app.seguranca import escrita_necessaria
 
 bp = Blueprint("receitas", __name__)
+
+TIPOS_NOTA = ("venda", "servico")
 
 
 def _tela(tabela: str, rota: str, titulo: str):
     """Vendas e Serviços são a mesma listagem com o tipo de nota fixo; o que
     muda é a chave de tabela dos funis. `rota` é o endpoint que os links de
     ordenação e o "limpar filtros" da tela usam."""
-    contexto = paineis.receitas(request.args, tabela)
+    contexto = paineis.receitas(g.escopo, request.args, tabela)
     return render_template("receitas.html", rota=rota, titulo=titulo, secao=tabela, **contexto)
+
+
+def _chave_da_nota(d: dict) -> tuple[str, str, str]:
+    return (
+        validacao.texto(d.get("empresa"), "Empresa", maximo=40),
+        validacao.escolha(d.get("tipo_nota"), "Tipo de nota", TIPOS_NOTA),
+        validacao.id_tiny(d.get("id")),
+    )
 
 
 @bp.route("/receitas")
@@ -36,21 +47,27 @@ def servicos():
 
 
 @bp.route("/receitas/ajustar", methods=["POST"])
+@escrita_necessaria
 def ajustar():
     """Edição manual de competência/categoria. O valor do ERP não é tocado —
     o ajuste vai para coluna própria."""
-    d = request.get_json()
+    d = request.get_json(silent=True) or {}
     try:
-        existe = definir_ajuste(
-            d["empresa"],
-            d["tipo_nota"],
-            d["id"],
-            competencia=d.get("competencia"),
-            categoria=d.get("categoria"),
+        empresa, tipo, id_nota = _chave_da_nota(d)
+        # Campo ausente = não mexe; string vazia = limpa o ajuste.
+        competencia = None if "competencia" not in d else validacao.competencia(d["competencia"])
+        categoria = (
+            None
+            if "categoria" not in d
+            else validacao.texto(d["categoria"], "Categoria", maximo=80, obrigatorio=False)
         )
+        existe = definir_ajuste(
+            g.escopo, empresa, tipo, id_nota, competencia=competencia, categoria=categoria
+        )
+    except validacao.ErroValidacao as e:
+        return jsonify({"ok": False, "erro": str(e)}), 400
     except sqlite3.IntegrityError:
-        # O CHECK do banco recusou o valor (ex.: competência 13/2026). Nada
-        # foi gravado; a tela mostra o aviso no próprio campo.
+        # Segunda barreira: o CHECK do banco recusou. Nada foi gravado.
         return jsonify({"ok": False, "erro": "valor inválido"}), 400
     if not existe:
         return jsonify({"ok": False, "erro": "nota não encontrada"}), 404
@@ -58,10 +75,16 @@ def ajustar():
 
 
 @bp.route("/receitas/marcar", methods=["POST"])
+@escrita_necessaria
 def marcar():
     """Override Considerar/Desconsiderar de uma nota. O dado do ERP não muda."""
-    d = request.get_json()
-    # considerar: true, false, ou null (volta ao padrão da situação da nota).
-    if not definir_marcacao(d["empresa"], d["tipo_nota"], d["id"], d["considerar"]):
+    d = request.get_json(silent=True) or {}
+    try:
+        empresa, tipo, id_nota = _chave_da_nota(d)
+        # true, false, ou null (volta ao padrão da situação da nota).
+        considerar = validacao.booleano_ou_nulo(d.get("considerar"))
+    except validacao.ErroValidacao as e:
+        return jsonify({"ok": False, "erro": str(e)}), 400
+    if not definir_marcacao(g.escopo, empresa, tipo, id_nota, considerar):
         return jsonify({"ok": False, "erro": "nota não encontrada"}), 404
     return jsonify({"ok": True})

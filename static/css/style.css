@@ -1216,3 +1216,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    (Fase 1). Itálico e cor de alerta, sem esmaecer: é número que pesa no
    Resultado e precisa ser visto. */
 .linha-adm-sem-base > td { font-style: italic; color: var(--despesa); }
+
+/* Recuo da árvore de gastos do Dashboard. Era style="..." no template, o que a
+   CSP sem 'unsafe-inline' (Fase 2) bloqueia. */
+.tabela-arvore .recuo-nivel-1 { padding-left: 26px; }
+.tabela-arvore .recuo-nivel-2 { padding-left: 62px; }
+
+/* Barra superior: usuário logado e Sair (Fase 2). */
+.usuario-logado { display: flex; align-items: center; gap: var(--esp-3); margin-left: auto; font-size: 11px; }
+.usuario-logado a { color: var(--tinta-suave); text-decoration: none; }
+.usuario-logado a:hover { color: var(--tinta); }
+.form-sair { margin: 0; }
+.botao-sair { font-size: 11px; padding: 2px 8px; }
+
+/* Login e troca de senha: um cartão estreito no meio da tela. */
+.caixa-login { max-width: 340px; margin: 48px auto; padding: var(--esp-5); }
+.caixa-login label { display: flex; flex-direction: column; gap: 3px; margin-bottom: var(--esp-4); font-size: 11px; font-weight: 600; color: var(--tinta-suave); }
+.caixa-login input { font-size: 13px; padding: 6px 8px; }
+.senha-provisoria { font-family: ui-monospace, monospace; font-size: 16px; letter-spacing: .05em; padding: var(--esp-3); background: var(--superficie-2); user-select: all; }

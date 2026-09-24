@@ -56,11 +56,8 @@ async function iniciar(forcar) {
         forcar,
     };
     try {
-        const resp = await fetch(bloco().dataset.iniciar, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(corpo),
-        });
+        // postarJson (csrf.js): leva o token CSRF no cabeçalho.
+        const resp = await postarJson(bloco().dataset.iniciar, corpo);
         const dados = await resp.json();
         if (!dados.ok) {
             avisar(dados.mensagem);

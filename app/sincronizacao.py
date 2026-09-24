@@ -17,6 +17,7 @@ from datetime import date
 
 from app.reports.contas_pagar import _registro_para_linha
 from app.repositorio_contas_pagar import mapa_por_id, upsert_contas
+from app.escopo import SISTEMA
 from app.trava import renovar
 
 # Campos que a listagem devolve e dá para comparar com o banco para achar mudanças.
@@ -93,7 +94,7 @@ def _sincronizar(cliente, empresa_nome: str, periodo: tuple[date, date], forcar:
 
     resumos = cliente.listar_resumo(data_ini, data_fim, progresso=ao_listar, por=por)
 
-    gravadas = mapa_por_id(empresa_nome)
+    gravadas = mapa_por_id(SISTEMA, empresa_nome)
 
     a_detalhar: list[str] = []
     novos = set()
@@ -122,7 +123,7 @@ def _sincronizar(cliente, empresa_nome: str, periodo: tuple[date, date], forcar:
 
     def descarregar():
         if lote:
-            upsert_contas(lote)
+            upsert_contas(SISTEMA, lote)
             lote.clear()
 
     for i, id_conta in enumerate(a_detalhar, start=1):

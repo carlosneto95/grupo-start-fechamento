@@ -1,16 +1,17 @@
 """Despesas (contas a pagar): listagem e a marcação Considerar/Desconsiderar."""
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, g, jsonify, redirect, render_template, request, url_for
 
-from app import paineis
+from app import paineis, validacao
 from app.repositorio_contas_pagar import definir_manual
+from app.seguranca import escrita_necessaria
 
 bp = Blueprint("despesas", __name__)
 
 
 @bp.route("/despesas")
 def listar():
-    return render_template("despesas.html", **paineis.despesas(request.args))
+    return render_template("despesas.html", **paineis.despesas(g.escopo, request.args))
 
 
 @bp.route("/contas-pagar")
@@ -20,9 +21,18 @@ def contas_pagar_antigo():
 
 
 @bp.route("/despesas/marcar", methods=["POST"])
+@escrita_necessaria
 def marcar():
-    dados = request.get_json()
-    # considerar: true, false, ou null (volta para o padrão das regras).
-    if not definir_manual(dados["empresa"], dados["id"], dados["considerar"]):
+    dados = request.get_json(silent=True) or {}
+    try:
+        empresa = validacao.texto(dados.get("empresa"), "Empresa", maximo=40)
+        id_conta = validacao.id_tiny(dados.get("id"))
+        # true, false, ou null (volta para o padrão das regras de exclusão).
+        considerar = validacao.booleano_ou_nulo(dados.get("considerar"))
+    except validacao.ErroValidacao as e:
+        return jsonify({"ok": False, "erro": str(e)}), 400
+    # False = não existe OU fora do escopo: 404 nos dois casos (não confirma
+    # a existência de conta de outra empresa).
+    if not definir_manual(g.escopo, empresa, id_conta, considerar):
         return jsonify({"ok": False, "erro": "conta não encontrada"}), 404
     return jsonify({"ok": True})

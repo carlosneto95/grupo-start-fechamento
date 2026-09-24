@@ -1,6 +1,6 @@
 """Dashboard (Resultados) e a página inicial."""
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, g, redirect, render_template, request, url_for
 
 from app import paineis
 
@@ -15,4 +15,4 @@ def inicio():
 
 @bp.route("/dashboard")
 def painel():
-    return render_template("dashboard.html", **paineis.dashboard(request.args))
+    return render_template("dashboard.html", **paineis.dashboard(g.escopo, request.args))
