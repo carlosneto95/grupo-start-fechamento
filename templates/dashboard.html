@@ -163,8 +163,11 @@
                     {# Sem receita a categoria não é contrato: é custo puro, e o
                        rateio proporcional à receita lhe dá zero. Marcada para
                        não parecer contrato com desempenho péssimo. #}
-                    <tr class="{{ 'linha-sem-receita' if not c.receita }}">
-                        <td class="cel-nome">{{ c.nome }}</td>
+                    {# A cota de Adm de um bloco sem receita no recorte vira linha
+                       própria (decisão da Fase 1): destacada, não esmaecida — é
+                       estrutura sem contrato para absorvê-la, não custo de categoria. #}
+                    <tr class="{{ 'linha-adm-sem-base' if c.adm_sem_base else ('linha-sem-receita' if not c.receita) }}">
+                        <td class="cel-nome" {% if c.adm_sem_base %}title="Cota de Adm I/II deste bloco: não há receita no recorte para ratear"{% endif %}>{{ c.nome }}</td>
                         <td class="num {{ 'valor-positivo' if c.resultado >= 0 else 'valor-negativo' }}">
                             {{ c.resultado|moeda }}
                         </td>

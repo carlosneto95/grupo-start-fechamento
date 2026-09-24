@@ -54,6 +54,9 @@ CATEGORIAS_VENDAS = {
 # conta como ADM GERAL.
 CATEGORIAS_ADM_GERAL = {"ADM GERAL", "ADM GERAL INATIVO"}
 
+# Nome da linha que carrega a cota de Adm de um bloco sem receita no recorte.
+ADM_SEM_RECEITA = "Adm sem receita para absorver"
+
 VENDAS = "Vendas"
 SERVICOS = "Serviços"
 SEM_CLASSIFICACAO = "Sem classificação"
@@ -90,6 +93,8 @@ def _linha(nome: str, rateia: bool = True) -> dict:
             "qtd_receita": 0, "qtd_despesa": 0}
     base.update({campo: (ZERO if rateia else None) for campo in CAMPOS_RATEADOS})
     base["rateia"] = rateia
+    # Marca a linha sintética da cota de Adm sem receita para absorver.
+    base["adm_sem_base"] = False
     return base
 
 
@@ -183,7 +188,22 @@ def separar(notas: list[dict], contas: list[dict]) -> dict:
             linha["adm1"] = adm1
             linha["adm2"] = adm2
 
+        # Bloco SEM receita no recorte (ex.: filtro só na MSV, que não tem
+        # receita de serviço): nenhuma linha tem peso e a cota do Adm não teria
+        # para onde ir. Antes ela sumia do Custo total e o Resultado ficava
+        # maior do que a despesa permite. Decisão do Neto (Fase 1): a cota vira
+        # uma linha própria, visível, para mostrar que a estrutura existe e
+        # não há contrato no recorte para absorvê-la.
+        sem_base = not base_receita and bool(cota_adm1 or cota_adm2)
+        if sem_base:
+            linha = _linha(ADM_SEM_RECEITA)
+            linha["adm1"] = cota_adm1
+            linha["adm2"] = cota_adm2
+            linha["adm_sem_base"] = True
+            blocos[bloco][ADM_SEM_RECEITA] = linha
+
         rateio["por_bloco"][bloco] = {
+            "sem_base": sem_base,
             "aliquota": aliquota,
             "adm1": cota_adm1,
             "adm2": cota_adm2,

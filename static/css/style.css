@@ -1211,3 +1211,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     font-weight: 400; font-size: 10px;
     color: var(--tinta-suave); border-top: 1px solid var(--acento-borda);
 }
+
+/* Linha sintética do Dashboard: cota de Adm de um bloco sem receita no recorte
+   (Fase 1). Itálico e cor de alerta, sem esmaecer: é número que pesa no
+   Resultado e precisa ser visto. */
+.linha-adm-sem-base > td { font-style: italic; color: var(--despesa); }

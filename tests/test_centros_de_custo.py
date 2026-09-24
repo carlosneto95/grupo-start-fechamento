@@ -11,7 +11,7 @@ Os valores são sintéticos e redondos para a conta caber de cabeça. Cenário b
 
 import pytest
 
-from app.centros_de_custo import SERVICOS, VENDAS, separar
+from app.centros_de_custo import ADM_SEM_RECEITA, SERVICOS, VENDAS, separar
 
 
 def _nota(categoria, valor):
@@ -117,25 +117,27 @@ def test_classificacao_ignora_caixa_e_espaco():
     assert b["vendas"]["linhas"][0]["receita"] == pytest.approx(100.0)
 
 
-def test_bloco_sem_receita_perde_o_adm_do_bloco():
-    """Comportamento ATUAL, registrado para o relatório da Fase 0.
-
-    Se um bloco não tem receita no recorte (ex.: filtro só de uma empresa de
-    serviços), o peso de todas as linhas dele é zero e a cota de Adm I e Adm II
-    daquele bloco não vai para lugar nenhum: some do custo total e o Resultado
-    do Total fica MAIOR do que a despesa real permite.
-
-    Aqui: 500 de ADM MSV e 10% de 1.000 do ADM GERAL (=100) somem, porque não
-    há receita de Vendas. Se a regra mudar, este teste muda junto — com
-    decisão registrada no HISTORICO.md."""
+def test_bloco_sem_receita_mostra_o_adm_numa_linha_propria():
+    """Correção da Fase 1 (item 4 do relatório): sem receita de Vendas no
+    recorte, a cota de Vendas (500 de ADM MSV + 10% de 1.000 do ADM GERAL)
+    não some mais — vira a linha "Adm sem receita para absorver", e o Total
+    carrega o bolo INTEIRO de Adm."""
     notas = [_nota("OBRA X", 10000.0)]
     contas = [_conta("ADM MSV", 500.0), _conta("ADM GERAL", 1000.0)]
     b = separar(notas, contas)
-    assert b["rateio"]["por_bloco"][VENDAS]["adm2"] == pytest.approx(500.0)
-    assert b["vendas"]["totais"]["adm2"] == 0.0
-    # Do bolo de 1.500 de Adm, só os 900 de Serviços chegam ao total.
-    assert b["total"]["adm1"] + b["total"]["adm2"] == pytest.approx(900.0)
-    assert b["total"]["custo_total"] == pytest.approx(10000 * 0.10 + 900.0)
+    (linha,) = b["vendas"]["linhas"]
+    assert linha["nome"] == ADM_SEM_RECEITA and linha["adm_sem_base"] is True
+    assert (linha["adm1"], linha["adm2"]) == (pytest.approx(100.0), pytest.approx(500.0))
+    assert linha["resultado"] == pytest.approx(-600.0) and linha["margem"] is None
+    assert b["rateio"]["por_bloco"][VENDAS]["sem_base"] is True
+    # Nada se perde: Adm I + Adm II do Total = todo o ADM GERAL + ADM MSV.
+    assert b["total"]["adm1"] + b["total"]["adm2"] == pytest.approx(1500.0)
+    assert b["total"]["custo_total"] == pytest.approx(10000 * 0.10 + 1500.0)
+
+
+def test_bloco_com_receita_nao_ganha_linha_sintetica(blocos):
+    nomes = {l["nome"] for b in ("vendas", "servicos") for l in blocos[b]["linhas"]}
+    assert ADM_SEM_RECEITA not in nomes
 
 
 def test_sem_nada_nao_quebra():
