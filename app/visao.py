@@ -13,7 +13,15 @@ ANO_MINIMO = 2026
 
 # A competência é guardada como texto "MM/AAAA", então o ano são os 4 caracteres
 # a partir da 4ª posição. Comparação de texto funciona porque são todos 4 dígitos.
-FILTRO_SQL_CONTAS = f"substr(competencia, 4, 4) >= '{ANO_MINIMO}'"
+#
+# Conta SEM competência passa (decisão do Neto, Fase 1, 24/09/2026), com a
+# mesma regra que as notas de serviço já seguiam: antes, o substr de um texto
+# vazio dava '' e a conta sumia de Despesas, do Dashboard e dos funis sem
+# aviso — 134 contas no banco de 23/09/2026. Agora ela aparece com a
+# competência "(vazio)" no funil, pedindo correção no Tiny.
+FILTRO_SQL_CONTAS = (
+    f"(TRIM(COALESCE(competencia, '')) = '' OR substr(competencia, 4, 4) >= '{ANO_MINIMO}')"
+)
 
 # Nota de serviço chega da API SEM competência (decisão de 25/08/2026: a emissão
 # quase nunca é o mês de competência, então derivar produzia número errado). Ela

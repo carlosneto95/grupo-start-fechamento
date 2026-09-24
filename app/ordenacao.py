@@ -31,6 +31,16 @@ def _chave(valor, tipo: str):
     direção — uma conta sem data de liquidação não deve encabeçar a lista só
     porque foi invertida a ordem."""
     if tipo == "data_br":
+        # Caminho rápido para o formato do Tiny (dd/mm/aaaa): fatiar e montar a
+        # data custa ~1/20 do strptime, que dominava o tempo da tela de
+        # Despesas (15 mil linhas). date() continua validando (31/02 é
+        # inválida e vai para o fim, como antes). Qualquer outro formato cai
+        # no strptime original, para a ordem sair idêntica à de antes.
+        if isinstance(valor, str) and len(valor) == 10 and valor[2] == "/" and valor[5] == "/":
+            try:
+                return (False, date(int(valor[6:]), int(valor[3:5]), int(valor[:2])))
+            except ValueError:
+                pass
         try:
             return (False, datetime.strptime(valor, "%d/%m/%Y").date())
         except (TypeError, ValueError):

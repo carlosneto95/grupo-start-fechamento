@@ -19,7 +19,7 @@ from app.tiny_client.api_client import TinyAPIClient
 def main():
     empresas = load_companies()
     if not empresas:
-        print("Nenhuma empresa configurada no .env ainda. Preencha EMPRESA1_* e tente de novo.")
+        print("Nenhuma empresa configurada no .env ainda. Preencha GSF_EMPRESA1_* e tente de novo.")
         return
 
     empresa = empresas[0]

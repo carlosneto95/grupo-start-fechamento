@@ -9,7 +9,106 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 0 — Fundação · 23/09/2026 · aguardando validação
+## Fase 1 — Estrutura técnica · 24/09/2026 · validada pelo Neto e mesclada (PR #6)
+
+### O que foi feito
+- **Estrutura**: fábrica `criar_app()` (padrão do Impostos); rotas finas em
+  `app/web/` (dashboard, despesas, receitas, análise, extração, admin, api); a regra
+  que morava em `app.py` foi para `app/paineis.py` sem mudar cálculo (golden idêntico).
+  `app.py` virou só ponto de entrada; `debug` do Flask desligado.
+- **Configuração** só do `.env` do projeto, prefixo `GSF_`, lida com `dotenv_values`;
+  sem `GSF_SECRET_KEY` de 32+ caracteres o app não sobe. O `.env` local foi renomeado
+  para os nomes novos (backup em `backups/`, nenhum valor exibido) e ganhou uma chave
+  gerada. Os tokens do Tiny deixaram de ir para `os.environ`.
+- **Migrações versionadas** (`app/migracoes/`, `db.MIGRACOES`), aplicadas no
+  `criar_app` com backup verificado antes e uma transação por migração:
+  1 = esquema de antes; 2 = integridade (CHECK nas colunas que o sistema escreve,
+  índices dos filtros), `auditoria` e `sincronizacoes`; 3 = dinheiro em centavos.
+- **Dinheiro em centavos** (`*_centavos INTEGER`), `Decimal` no cálculo, meio centavo
+  sobe (`ROUND_HALF_UP`), rateio com resíduo na maior parte (`dinheiro.ratear`). Prova
+  de reconciliação linha a linha e por empresa × competência × coluna; qualquer
+  diferença desfaz a migração (testado).
+- **journal_mode DELETE**, o mesmo do Impostos em produção (WAL não verificado no
+  PythonAnywhere; na dúvida, o que já roda lá).
+- **Auditoria** append-only (triggers) em toda escrita manual: marcar, ajustar nota,
+  regras de exclusão e a importação de competências. Registro inexistente → 404;
+  valor recusado pelo CHECK → 400.
+- **Sincronização unificada** (`app/sincronizar_tudo.py`): contas e notas das três
+  empresas no mesmo job, usado pela tela (agora com "Todas"), pela linha de comando e
+  por `scripts/tarefa_diaria.py` (backup 30 dias + sync + relatório). Histórico em
+  `sincronizacoes`; falha numa empresa não derruba as outras.
+- **Erros e log**: tela genérica; `logs/app.log` com rotação (5 × 1 MB) e máscara de
+  token, senha e CPF/CNPJ em mensagem e traceback.
+- **Tela Sincronizar** sem `alert()`/`confirm()` e sem `innerHTML` com dado do Tiny
+  (fechava um XSS por nome de fornecedor). JS sem caminho fixo (prefixo de produção).
+- **Correções de bug** achadas no caminho: `importar_competencias_notas.py` atualizava
+  nota sem filtrar a empresa; scripts ignoravam `GSF_BANCO`; abertura só-leitura
+  quebrava com espaço no caminho (relatório e tarefa diária falhariam); relatório de
+  qualidade somaria `float` com `Decimal`.
+- **Banco local migrado** (versão 3), com backup `backups/app_20260924_002608_antes_v1.db`:
+  reconciliação ok (28.528 contas, 1.135 notas), integridade ok, 15 MB após VACUUM.
+  A fotografia do banco real bate com o golden: 0 diferenças.
+- **Testes: 169** (unitários sintéticos + golden). `ruff check` limpo.
+
+### Golden master — o que mudou de número, e por quê
+Cada etapa está em `tests/golden/esperado/diff_*.md` (fora do git) e no histórico do
+`meta.json`, com a fotografia anterior guardada.
+1. **Centavos/Decimal** — 413 diferenças, só nos quadros do Dashboard, máximo de 4
+   centavos: imposto arredondado por linha, resíduo do rateio na maior receita e o
+   10% do ADM GERAL arredondado para Vendas com o complemento exato para Serviços.
+   Receita, despesa, contagens e funis idênticos. 0 violações das regras verificadas.
+2. **Conta sem competência aparece** (item 2) — entram exatamente as 134 contas do
+   relatório da Fase 0, só nos recortes sem filtro de competência.
+3. **Dashboard sem filtro = 01/2026 até o último mês com receita** (item 3) — só os
+   cenários sem filtro mudam; cada um é a soma exata dos oito meses.
+4. **Adm sem receita para absorver vira linha** (item 4, opção a) — 24 recortes (os do
+   relatório da Fase 0); em todos os cenários o Total carrega o bolo inteiro de Adm.
+5. **Ordem do funil determinística** (item 5) — mesmas listas, só a ordem.
+
+### Desempenho (banco congelado, mediana, máquina local)
+| Rota | Antes | Depois | Meta 300 ms |
+|---|---:|---:|---|
+| /despesas (15,6 mil linhas) | 1.743 ms | ~190 ms | atingida (2 mil linhas na tela) |
+| /dashboard | 643 ms | ~280 ms | atingida |
+| /api/valores-filtro (fornecedor) | 365 ms | ~115 ms | atingida |
+| /api/valores-filtro (competência) | 357 ms | ~115 ms | atingida |
+
+Em /despesas, montar os dados custa ~170 ms; renderizar 15,6 mil linhas levava ~300 ms.
+Decisão do Neto: a tela desenha até 2 mil linhas, com "Mostrar todas"; total, contagem
+e funis continuam sobre todas as linhas do recorte.
+
+### Decisões
+1. Pacote continua `app/` (renomear para `sistema/` mudaria todos os imports sem ganho).
+2. Colunas monetárias renomeadas (`valor` → `valor_centavos`): quem lê o banco direto
+   não confunde centavos com reais.
+3. Regras de exclusão **não** cacheadas: já eram lidas uma vez por listagem (< 1 ms), e
+   um cache arriscaria worker do PythonAnywhere somando com regra velha.
+4. Uma trava por empresa cobre contas e notas (dividem a cota da API).
+5. Não parei no meio da fase quando o golden mudou por centavos: a mudança decorre do
+   item 4 da fase (Decimal + resíduo), está explicada linha a linha e fica numa branch
+   sem merge até a validação.
+
+### Código removido (com aval do Neto)
+`app/tiny_client/http_client.py` (login simulado, nunca usado); `app/reports/consolidar.py`;
+`combinar_registros`/`salvar` em `app/reports/contas_pagar.py` (únicos usos de pandas no
+app); `arvore_datas`, `arvore_competencias`, `arvore_competencias_notas`,
+`categorias_primarias_das_notas`, `resumir_por_categoria`, `resumir_receitas` e o
+`sincronizacao.sincronizar` público (substituído pelo job único) — nenhuma referência.
+
+### Validação do Neto (24/09/2026)
+"De acordo com tudo": as cinco mudanças de número aprovadas (registrado no `meta.json`
+do golden), Despesas limitada a 2 mil linhas na tela, código morto removido.
+Também: fim de linha normalizado para LF (`.gitattributes`); o repositório nasceu
+misturado e cada edição aparecia como troca do arquivo inteiro.
+
+### Pendências
+- Sincronizar as 3 empresas (paradas desde 25/08/2026) — agora pela tela, com "Todas".
+- 4 PRs do Dependabot abertos (actions e pandas 3.0.6): o do pandas precisa do golden
+  local antes do merge.
+
+---
+
+## Fase 0 — Fundação · 23/09/2026 · validada e mesclada (PR #1)
 
 ### O que foi feito
 - **Backup** `backups/app_20260923_221922_antes_fase0.db` pela API de backup do SQLite,

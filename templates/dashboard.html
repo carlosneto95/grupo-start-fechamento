@@ -9,6 +9,15 @@
 <form method="get" id="form-analise">
     {# A competência continua no formato de árvore Ano > Mês, igual às outras telas. #}
     <div class="barra-competencia">
+        {# Sem competência marcada, o Dashboard mostra o período padrão (até o
+           último mês com receita). Escrito aqui para ninguém ler o Total
+           achando que é "tudo". #}
+        {% if periodo_padrao %}
+        <p class="legenda periodo-padrao">
+            Período: <strong>{{ periodo_padrao.inicio }} a {{ periodo_padrao.fim }}</strong>
+            — padrão (até o último mês com receita). Marque competências no filtro para mudar.
+        </p>
+        {% endif %}
         <div class="cartoes cartoes-compactos">
             <div class="cartao positivo">
                 <span class="cartao-rotulo">Receita</span>
@@ -137,15 +146,15 @@
                         <th class="num">Adm I</th>
                         <th class="num">Adm II</th>
                         {% else %}
-                        {{ ord.th_tabela("dashboard", "nome", "Categoria", ordenar_tabela, direcao_tabela, a) }}
-                        {{ ord.th_tabela("dashboard", "resultado", "Resultado", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "margem", "Margem", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "custo_total", "Custo total", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "receita", "Receita", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "despesa", "Despesa", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "imposto", "Impostos", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "adm1", "Adm I", ordenar_tabela, direcao_tabela, a, "num") }}
-                        {{ ord.th_tabela("dashboard", "adm2", "Adm II", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "nome", "Categoria", ordenar_tabela, direcao_tabela, a) }}
+                        {{ ord.th_tabela("dashboard.painel", "resultado", "Resultado", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "margem", "Margem", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "custo_total", "Custo total", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "receita", "Receita", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "despesa", "Despesa", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "imposto", "Impostos", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "adm1", "Adm I", ordenar_tabela, direcao_tabela, a, "num") }}
+                        {{ ord.th_tabela("dashboard.painel", "adm2", "Adm II", ordenar_tabela, direcao_tabela, a, "num") }}
                         {% endif %}
                     </tr>
                 </thead>
@@ -154,8 +163,11 @@
                     {# Sem receita a categoria não é contrato: é custo puro, e o
                        rateio proporcional à receita lhe dá zero. Marcada para
                        não parecer contrato com desempenho péssimo. #}
-                    <tr class="{{ 'linha-sem-receita' if not c.receita }}">
-                        <td class="cel-nome">{{ c.nome }}</td>
+                    {# A cota de Adm de um bloco sem receita no recorte vira linha
+                       própria (decisão da Fase 1): destacada, não esmaecida — é
+                       estrutura sem contrato para absorvê-la, não custo de categoria. #}
+                    <tr class="{{ 'linha-adm-sem-base' if c.adm_sem_base else ('linha-sem-receita' if not c.receita) }}">
+                        <td class="cel-nome" {% if c.adm_sem_base %}title="Cota de Adm I/II deste bloco: não há receita no recorte para ratear"{% endif %}>{{ c.nome }}</td>
                         <td class="num {{ 'valor-positivo' if c.resultado >= 0 else 'valor-negativo' }}">
                             {{ c.resultado|moeda }}
                         </td>

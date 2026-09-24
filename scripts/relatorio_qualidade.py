@@ -17,6 +17,7 @@ import argparse
 import sqlite3
 import sys
 from collections import defaultdict
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -26,8 +27,9 @@ sys.path.insert(0, str(RAIZ))
 # Só funções PURAS do app: nenhuma delas abre conexão. Assim o relatório usa
 # exatamente a mesma regra da tela sem passar pelo get_conn (que grava PRAGMA).
 from app.centros_de_custo import separar  # noqa: E402
+from app.db import abrir_somente_leitura  # noqa: E402
 from app.receitas import _enriquecer  # noqa: E402
-from app.repositorio_contas_pagar import _considerar_efetivo  # noqa: E402
+from app.repositorio_contas_pagar import _considerar_efetivo, _em_reais  # noqa: E402
 from app.visao import ANO_MINIMO, formatar_valor  # noqa: E402
 
 BRT_OFFSET_H = -3  # horário de Brasília fixo (sem horário de verão desde 2019)
@@ -46,9 +48,21 @@ def _ano_mes(comp: str | None):
 
 
 def carregar(caminho: Path):
-    conn = sqlite3.connect(f"file:{caminho.as_posix()}?mode=ro", uri=True)
+    conn = abrir_somente_leitura(caminho)
     conn.row_factory = sqlite3.Row
-    contas = [dict(r) for r in conn.execute("SELECT * FROM contas_pagar")]
+    # O relatório abre SÓ LEITURA e não migra. Num banco anterior à migração 3
+    # (dinheiro em centavos) ele mostraria R$ 0,00 em tudo sem avisar — o que
+    # é pior que não rodar. Recusa e diz o que fazer.
+    colunas = {r[1] for r in conn.execute("PRAGMA table_info(contas_pagar)")}
+    if "valor_centavos" not in colunas:
+        conn.close()
+        raise SystemExit(
+            f"{caminho}: banco sem as migrações da Fase 1 (valor em centavos). "
+            "Suba o sistema uma vez (python app.py) ou rode scripts/tarefa_diaria.py, "
+            "que migram com backup, e gere o relatório de novo."
+        )
+    # _em_reais: desde a Fase 1 o banco guarda centavos; a regra usa reais.
+    contas = [_em_reais(dict(r)) for r in conn.execute("SELECT * FROM contas_pagar")]
     notas = [_enriquecer(dict(r)) for r in conn.execute("SELECT * FROM notas")]
     regras: dict[str, list[str]] = {"categoria_primaria": [], "subcategoria": []}
     for r in conn.execute("SELECT tipo, valor FROM regras_exclusao"):
@@ -66,9 +80,10 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
 
     # Visão = o que a tela mostra hoje (FILTRO_SQL_CONTAS / FILTRO_SQL_NOTAS).
     def conta_visivel(c):
-        # Réplica exata de FILTRO_SQL_CONTAS: substr(competencia, 4, 4) >= '2026'
-        # é comparação de TEXTO. NULL e vazio ficam fora (é o achado do item 2).
-        return (c["competencia"] or "")[3:7] >= str(ANO_MINIMO)
+        # Réplica de FILTRO_SQL_CONTAS (app/visao.py): competência vazia passa
+        # (desde a Fase 1) e o resto é comparação de TEXTO do ano.
+        comp = (c["competencia"] or "").strip()
+        return not comp or comp[3:7] >= str(ANO_MINIMO)
 
     def nota_visivel(n):
         comp = (n["competencia_efetiva"] or "").strip()
@@ -108,12 +123,13 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
     )
 
     # ---- 2. Contas sem competência ----------------------------------------
-    p("## 2. Contas a pagar sem competência (somem da tela)\n")
+    p("## 2. Contas a pagar sem competência (corrigir no Tiny)\n")
     sem_comp = [c for c in contas if not (c["competencia"] or "").strip()]
     p(
         f"Total: **{len(sem_comp)} contas, {rs(sum(c['valor'] or 0 for c in sem_comp))}**. "
-        "`substr(NULL, 4, 4) >= '2026'` é NULL, e a linha cai fora do `WHERE` — some de "
-        "Despesas, do Dashboard e dos funis, sem aviso.\n"
+        'Desde a Fase 1 elas aparecem em Despesas com a competência "(vazio)" no funil '
+        "(antes sumiam da tela). Não entram em nenhum mês do Dashboard até a competência "
+        "ser preenchida no Tiny.\n"
     )
     p("| Empresa | Ano do vencimento | Contas | Valor | Seriam consideradas |")
     p("|---|---|---:|---:|---:|")
@@ -127,7 +143,7 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
             f"| {emp} | {ano} | {len(linhas)} | {rs(sum(x['valor'] or 0 for x in linhas))} | "
             f"{len(cons)} ({rs(sum(x['valor'] or 0 for x in cons))}) |"
         )
-    cats = defaultdict(float)
+    cats = defaultdict(Decimal)
     for c in sem_comp:
         if (c["data_vencimento"] or "")[6:10] >= str(ANO_MINIMO):
             cats[c["categoria_primaria"] or "(sem categoria)"] += c["valor"] or 0
@@ -139,7 +155,7 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
 
     # ---- 3. Competências absurdas / futuras --------------------------------
     p("## 3. Competências futuras e absurdas\n")
-    fut = defaultdict(lambda: [0, 0.0, 0.0])
+    fut = defaultdict(lambda: [0, Decimal(0), Decimal(0)])
     tortas = []
     for c in contas_vis:
         am = _ano_mes(c["competencia"])
@@ -165,7 +181,9 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
     if tortas:
         p(f"\nCompetência fora do formato MM/AAAA na visão: {len(tortas)} contas.")
 
-    # Efeito no Dashboard sem slicer: ele soma TODA competência >= 2026.
+    # Quanto da despesa considerada é de competência FUTURA. Desde a Fase 1 o
+    # Dashboard sem filtro usa o período padrão (até o último mês com receita)
+    # e não soma mais isso; o número fica aqui para dimensionar a sujeira.
     mes_atual = (hoje.year, hoje.month)
     cons_vis = [c for c in contas_vis if c["considerar_efetivo"]]
     total = sum(c["valor"] or 0 for c in cons_vis)
@@ -173,11 +191,10 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
         c["valor"] or 0 for c in cons_vis if (_ano_mes(c["competencia"]) or (0, 0)) > mes_atual
     )
     p(
-        f"\n**Dashboard sem slicer**: despesa considerada {rs(total)}, dos quais "
-        f"**{rs(futuro)} ({futuro / total * 100:.1f}%)** são de competência posterior a "
-        f"{hoje:%m/%Y} — parcelas ainda não incorridas, somadas contra uma receita que só "
-        "vai até o último mês faturado. O Total sem slicer não é um resultado de período "
-        "nenhum.\n"
+        f"\nDespesa considerada na visão: {rs(total)}, dos quais "
+        f"**{rs(futuro)} ({(futuro / total * 100) if total else 0:.1f}%)** são de competência "
+        f"posterior a {hoje:%m/%Y}. O Dashboard sem filtro não soma mais essa parte (período "
+        "padrão desde a Fase 1); competência absurda continua a corrigir no Tiny.\n"
     )
 
     # ---- 4. Sem categoria ---------------------------------------------------
@@ -187,7 +204,7 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
         f"Contas sem categoria: **{len(sc)}**, {rs(sum(c['valor'] or 0 for c in sc))} "
         f"(consideradas: {rs(sum(c['valor'] or 0 for c in sc if c['considerar_efetivo']))}).\n"
     )
-    por = defaultdict(lambda: [0, 0.0])
+    por = defaultdict(lambda: [0, Decimal(0)])
     for c in sc:
         por[c["empresa"]][0] += 1
         por[c["empresa"]][1] += c["valor"] or 0
@@ -196,7 +213,7 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
     p("")
     p("| Empresa | Tipo | Notas sem categoria efetiva | Receita considerada sem categoria |")
     p("|---|---|---:|---:|")
-    por_n = defaultdict(lambda: [0, 0.0])
+    por_n = defaultdict(lambda: [0, Decimal(0)])
     for n in notas_vis:
         if not (n["categoria_primaria_efetiva"] or "").strip():
             k = (n["empresa"], n["tipo_nota"])
@@ -217,8 +234,8 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
     cons = [n for n in sem if n["considerar_efetivo"]]
     p(
         f"{len(sem)} notas ({len(cons)} consideradas, {rs(sum(n['valor'] or 0 for n in cons))}). "
-        "Aparecem em Receitas pedindo preenchimento (correto), **e entram no Total do "
-        "Dashboard sem slicer**, mas em nenhum mês quando se marca competência.\n"
+        "Aparecem em Receitas pedindo preenchimento e não entram em nenhum mês do "
+        "Dashboard até a competência ser preenchida.\n"
     )
     for n in sem:
         p(
@@ -228,13 +245,13 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
     p("")
 
     # ---- 6. Rateio perdido ---------------------------------------------------
-    p("## 6. Adm rateado que some do Dashboard (bloco sem receita no recorte)\n")
+    p("## 6. Adm sem receita para absorver (bloco sem receita no recorte)\n")
     p(
-        "`separar()` rateia Adm I/II pela receita de cada categoria do bloco. Se o bloco "
-        "não tem receita no recorte, todo peso é zero e a cota **não vai para linha "
-        "nenhuma**: some do Custo total e o Resultado sobe.\n"
+        "`separar()` rateia Adm I/II pela receita de cada categoria do bloco. Quando o "
+        "bloco não tem receita no recorte, a cota aparece no Dashboard como a linha "
+        "**Adm sem receita para absorver** (desde a Fase 1; antes sumia do custo).\n"
     )
-    p("| Recorte | Bloco | Adm I perdido | Adm II perdido |")
+    p("| Recorte | Bloco | Adm I sem base | Adm II sem base |")
     p("|---|---|---:|---:|")
     comps = sorted(
         {

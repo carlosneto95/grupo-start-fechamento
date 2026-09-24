@@ -9,9 +9,31 @@
     <p class="aviso">Nenhuma empresa configurada no arquivo <code>.env</code>.</p>
     {% else %}
 
-    <div class="bloco-extracao">
+    {# Última sincronização de cada empresa × tipo, lida da tabela
+       `sincronizacoes`. "Último sucesso" é o que importa para confiar no número
+       da tela; a última execução pode ter falhado. #}
+    {% if ultimas %}
+    <div class="cartoes cartoes-compactos">
+        {% for u in ultimas %}
+        <div class="cartao {{ 'negativo' if u.ultimo_status == 'erro' }}">
+            <span class="cartao-rotulo">{{ u.empresa }} · {{ 'despesas' if u.tipo == 'contas' else 'receitas' }}</span>
+            <strong class="cartao-valor">{{ u.ultimo_sucesso[:16]|replace('T', ' ') if u.ultimo_sucesso else 'nunca' }}</strong>
+            <span class="legenda">
+                {% if u.ultimo_status == 'erro' %}última tentativa falhou: {{ u.ultimo_erro }}
+                {% elif u.ultimo_status == 'rodando' %}em andamento
+                {% else %}último sucesso{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bloco-extracao"
+         data-iniciar="{{ url_for('extracao.iniciar') }}"
+         data-status="{{ url_for('extracao.status') }}">
         <label>Empresa
             <select id="empresa">
+                <option value="TODAS">Todas as empresas</option>
                 {% for e in empresas %}
                 <option value="{{ e.key }}">{{ e.nome }}</option>
                 {% endfor %}
@@ -30,9 +52,9 @@
 
         <h3>Sincronizar</h3>
         <p class="legenda">
-            Varre o ano no Tiny e traz para o banco tudo que for <strong>novo</strong> ou que
-            tiver <strong>mudado</strong> (valor, saldo, situação, datas). O que já está
-            igual não é rebuscado, então costuma ser rápido. Use no dia a dia.
+            Traz do Tiny as <strong>despesas e as notas</strong> do ano (com dois meses de
+            folga nas pontas): o que for <strong>novo</strong> ou tiver <strong>mudado</strong>
+            (valor, saldo, situação, datas). O que já está igual não é rebuscado. Use no dia a dia.
         </p>
         <button type="button" id="btn-sincronizar" class="botao-principal">Sincronizar</button>
 
@@ -41,11 +63,12 @@
         <h3>Forçar atualização completa</h3>
         <p class="legenda">
             Rebusca <strong>todas</strong> as contas do ano, uma a uma. Mais lento (pode passar
-            de 20 minutos), mas é o único jeito de pegar alteração que não aparece na listagem —
-            por exemplo, se mudaram só a <strong>competência</strong> ou a categoria no ERP.
-            No fim, mostra o que mudou.
+            de 20 minutos por empresa), mas é o único jeito de pegar alteração que não aparece na
+            listagem — por exemplo, se mudaram só a <strong>competência</strong> ou a categoria
+            no ERP. Pede um segundo clique para confirmar.
         </p>
         <button type="button" id="btn-forcar">Forçar atualização completa</button>
+        <p id="aviso-inicio" class="aviso-linha" hidden></p>
     </div>
 
     <div id="painel-progresso" hidden>
@@ -56,7 +79,7 @@
         <div id="resultado"></div>
     </div>
 
-        {% endif %}
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}

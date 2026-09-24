@@ -11,7 +11,7 @@
 <form method="get" id="form-tabela">
     <div class="barra-ferramentas">
         {% if filtros_coluna %}
-        <a class="limpar-filtros" href="{{ url_for('despesas') }}">
+        <a class="limpar-filtros" href="{{ url_for('despesas.listar') }}">
             Limpar {{ filtros_coluna|length }} filtro(s)
         </a>
         {% endif %}
@@ -32,26 +32,38 @@
     {# Ordenação viaja em campo escondido para não se perder ao aplicar filtro. #}
     <input type="hidden" name="ordenar" value="{{ ordenar }}">
     <input type="hidden" name="direcao" value="{{ direcao }}">
+    {% if mostrando_todas %}<input type="hidden" name="todas" value="1">{% endif %}
+
+    {# Limite de linhas desenhadas (app/paineis.py:LINHAS_NA_TELA). O total do
+       cartão acima já soma todas; aqui só avisa e oferece desenhar o resto. #}
+    {% if linhas_ocultas %}
+    <p class="aviso-linha">
+        Mostrando as primeiras {{ contas_exibidas|length }} de {{ contas|length }} linhas
+        (o total considerado soma todas).
+        <a href="{{ url_for('despesas.listar', **dict(args_atuais, todas='1')) }}">Mostrar todas</a>
+        ou filtre pelo cabeçalho.
+    </p>
+    {% endif %}
 
     <div class="tabela-caixa">
-    <table id="tabela-contas" data-marcar="/despesas/marcar">
+    <table id="tabela-contas" data-marcar="{{ url_for('despesas.marcar') }}">
         <thead>
             <tr>
-                {{ col.th("despesas", "despesas", "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "fornecedor", "Fornecedor", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "data_emissao", "Emissão", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "data_vencimento", "Vencimento", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "data_liquidacao", "Liquidação", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "competencia", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "valor", "Valor", ordenar, direcao, args_atuais, filtros_coluna, "num", True) }}
-                {{ col.th("despesas", "despesas", "categoria_primaria", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "subcategoria", "Subcategoria", ordenar, direcao, args_atuais, filtros_coluna) }}
-                {{ col.th("despesas", "despesas", "situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "considerar_efetivo", "Considerar", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "fornecedor", "Fornecedor", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "data_emissao", "Emissão", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "data_vencimento", "Vencimento", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "data_liquidacao", "Liquidação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "competencia", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "valor", "Valor", ordenar, direcao, args_atuais, filtros_coluna, "num", True) }}
+                {{ col.th("despesas.listar", "despesas", "categoria_primaria", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "subcategoria", "Subcategoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("despesas.listar", "despesas", "situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
             </tr>
         </thead>
         <tbody>
-            {% for c in contas %}
+            {% for c in contas_exibidas %}
             <tr data-empresa="{{ c.empresa }}" data-id="{{ c.id }}" data-valor="{{ c.valor or 0 }}"
                 class="{{ 'linha-desconsiderada' if not c.considerar_efetivo }}">
                 {# Texto clicável no lugar da caixa: o estado fica legível sem

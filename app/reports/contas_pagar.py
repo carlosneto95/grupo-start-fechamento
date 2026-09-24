@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from pathlib import Path
 
-import pandas as pd
 
 # O histórico é texto livre. Na API vem com quebras de linha separando os blocos
 # ("CENTRO DE CUSTO: X\n\nOBS: ..."), mas na planilha exportada as quebras viram
@@ -116,21 +114,5 @@ def _registro_para_linha(registro: dict, empresa: str) -> dict:
     }
 
 
-def combinar_registros(registros_por_empresa: dict[str, list[dict]]) -> pd.DataFrame:
-    """Recebe {nome_empresa: [registro_api, ...]} e retorna tudo empilhado."""
-    linhas = [
-        _registro_para_linha(registro, empresa)
-        for empresa, registros in registros_por_empresa.items()
-        for registro in registros
-    ]
-
-    if not linhas:
-        return pd.DataFrame()
-
-    return pd.DataFrame(linhas)
 
 
-def salvar(df: pd.DataFrame, destino: Path) -> Path:
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    df.to_excel(destino, index=False)
-    return destino

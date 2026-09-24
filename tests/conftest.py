@@ -4,8 +4,8 @@ Duas regras que valem para toda a suíte:
 
 1. **Nenhum teste toca o banco real.** O `app.db.get_conn()` lê o caminho do
    banco de `app.db.DB_PATH` a cada chamada. Aqui ele é redirecionado para uma
-   pasta temporária ANTES de qualquer import do app web — o `app.py` roda
-   `init_db()` no import, e sem o redirecionamento isso abriria `data/app.db`.
+   pasta temporária já na coleta, e todo app de teste nasce de `cliente_para`,
+   que passa um banco temporário explícito para a fábrica.
 
 2. **Teste versionado não contém valor real** (regra herdada do Controle de
    Impostos). Os dados daqui são sintéticos: empresas, fornecedores e valores
@@ -14,7 +14,6 @@ Duas regras que valem para toda a suíte:
 
 from __future__ import annotations
 
-import importlib.util
 import sqlite3
 import sys
 import tempfile
@@ -27,6 +26,7 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 import app.db as db  # noqa: E402  (precisa do sys.path acima)
+from app.dinheiro import para_centavos  # noqa: E402
 
 # Redireciona já na coleta: qualquer import que chame init_db() cai aqui, nunca
 # em data/app.db. Cada teste que precisa de banco troca de novo por um próprio.
@@ -34,23 +34,32 @@ _PASTA_SESSAO = Path(tempfile.mkdtemp(prefix="gsf_testes_"))
 db.DB_PATH = _PASTA_SESSAO / "coleta.db"
 
 
-def carregar_app_web():
-    """Carrega o `app.py` da raiz como módulo `app_web`.
+# Chave só de teste: a fábrica recusa subir sem 32+ caracteres, e os testes não
+# podem depender do .env da máquina (o CI não tem .env).
+CHAVE_TESTE = "chave-de-teste-" + "x" * 32
 
-    Não dá para fazer `import app`: o nome `app` é do pacote `app/`, que tem
-    precedência sobre o módulo `app.py` na mesma pasta. O `python app.py`
-    funciona só porque roda o arquivo como `__main__`. Carregar pelo caminho
-    evita renomear arquivo nesta fase (a fábrica `criar_app()` é da Fase 1).
 
-    O módulo é guardado em sys.modules: as rotas não guardam o caminho do
-    banco, então carregar uma vez só basta para todos os testes."""
-    if "app_web" in sys.modules:
-        return sys.modules["app_web"]
-    spec = importlib.util.spec_from_file_location("app_web", RAIZ / "app.py")
-    modulo = importlib.util.module_from_spec(spec)
-    sys.modules["app_web"] = modulo
-    spec.loader.exec_module(modulo)
-    return modulo
+def cliente_para(caminho_db: Path, **config):
+    """Cliente de teste do Flask apontando para `caminho_db`.
+
+    Ponto ÚNICO de montagem do app nos testes, no golden master e na medição
+    de desempenho. Na Fase 0 ele carregava o app.py; desde a Fase 1 chama a
+    fábrica criar_app() — e o golden continuou medindo a mesma coisa.
+
+    Os logs vão para a pasta temporária da sessão, não para logs/ do projeto."""
+    from app import criar_app
+
+    app = criar_app(
+        {
+            "SECRET_KEY": CHAVE_TESTE,
+            "CAMINHO_BANCO": str(caminho_db),
+            "PASTA_LOGS": str(_PASTA_SESSAO / "logs"),
+            "PASTA_BACKUPS": str(Path(caminho_db).parent / "backups"),
+            "TESTING": True,
+            **config,
+        }
+    )
+    return app.test_client()
 
 
 # --------------------------------------------------------------------------
@@ -122,7 +131,14 @@ def gravar(caminho: Path, contas=(), notas=(), regras=()):
     conn = sqlite3.connect(caminho)
     try:
         for tabela, linhas in (("contas_pagar", contas), ("notas", notas)):
-            for linha in linhas:
+            # O mesmo helper serve ao esquema antigo (valor REAL, usado nos
+            # testes de migração) e ao atual (valor_centavos INTEGER).
+            existentes = {r[1] for r in conn.execute(f"PRAGMA table_info({tabela})")}
+            for original in linhas:
+                linha = dict(original)
+                for campo in ("valor", "saldo", "pago"):
+                    if f"{campo}_centavos" in existentes and campo in linha:
+                        linha[f"{campo}_centavos"] = para_centavos(linha.pop(campo))
                 colunas = ", ".join(linha)
                 marcadores = ", ".join(f":{c}" for c in linha)
                 conn.execute(f"INSERT INTO {tabela} ({colunas}) VALUES ({marcadores})", linha)
@@ -137,7 +153,7 @@ def banco(tmp_path, monkeypatch):
     """Banco vazio com o schema atual, isolado por teste."""
     caminho = tmp_path / "teste.db"
     monkeypatch.setattr(db, "DB_PATH", caminho)
-    db.init_db()
+    db.migrar(caminho, tmp_path / "backups")
     return caminho
 
 
@@ -193,6 +209,4 @@ def banco_exemplo(banco):
 @pytest.fixture
 def cliente(banco_exemplo):
     """Cliente de teste do Flask sobre o banco de exemplo."""
-    web = carregar_app_web()
-    web.app.config["TESTING"] = True
-    return web.app.test_client()
+    return cliente_para(banco_exemplo)

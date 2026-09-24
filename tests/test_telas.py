@@ -68,9 +68,49 @@ def test_dashboard_usa_a_competencia_manual_da_nota(cliente):
     assert c["quantidade_notas"] == 1
 
 
-def test_dashboard_sem_slicer_inclui_nota_sem_competencia(cliente):
-    """Comportamento ATUAL: sem slicer, a nota sem competência (700) entra na
-    receita do dashboard — listar_notas só filtra competência quando há slicer.
-    Registrado para o relatório; o golden master do banco real mostra o tamanho."""
+def test_dashboard_sem_slicer_usa_o_periodo_padrao(cliente):
+    """Correção da Fase 1 (item 3): sem competência marcada, o Dashboard mostra
+    de 01/2026 ao último mês com receita (aqui 02/2026, pela nota 203 ajustada
+    à mão) — não "tudo". Fica fora a nota sem competência (700) e a conta de
+    competência futura não entraria no Total."""
     c = _contexto(cliente, "/dashboard")
-    assert c["total_receita"] == pytest.approx(20000 + 10000 + 1000 + 700)
+    assert c["periodo_padrao"]["inicio"] == "01/2026"
+    assert c["periodo_padrao"]["fim"] == "02/2026"
+    assert c["total_receita"] == pytest.approx(20000 + 10000 + 1000)
+    corpo = cliente.get("/dashboard").get_data(as_text=True)
+    assert "01/2026 a 02/2026" in corpo
+
+
+def test_dashboard_com_slicer_nao_usa_periodo_padrao(cliente):
+    c = _contexto(cliente, "/dashboard?competencia=01/2026")
+    assert c["periodo_padrao"] is None
+
+
+def test_conta_sem_competencia_aparece_como_vazio(cliente, banco_exemplo):
+    """Correção da Fase 1 (item 2): conta com competência vazia não some mais —
+    aparece em Despesas e no funil como "(vazio)", mas não vira opção de mês
+    no slicer do Dashboard."""
+    from tests.conftest import _conta, gravar
+
+    gravar(banco_exemplo, [_conta("ALFA", 90, "COMERCIO-Frete", 55.0, "")])
+    c = _contexto(cliente, "/despesas")
+    assert "90" in {x["id"] for x in c["contas"]}
+    arvore = cliente.get("/api/valores-filtro?tabela=despesas&coluna=competencia").get_json()
+    assert arvore["arvore"][-1]["valor"] == "(vazio)"
+    assert "" not in _contexto(cliente, "/dashboard")["opcoes"]["competencia"]
+
+
+def test_despesas_limita_linhas_desenhadas_mas_soma_todas(cliente, monkeypatch):
+    """Fase 1 (decisão do Neto): a tela desenha no máximo LINHAS_NA_TELA
+    linhas; o total considerado e a contagem continuam sobre todas."""
+    from app import paineis
+
+    monkeypatch.setattr(paineis, "LINHAS_NA_TELA", 3)
+    c = _contexto(cliente, "/despesas")
+    assert len(c["contas_exibidas"]) == 3 and len(c["contas"]) == 11
+    assert c["linhas_ocultas"] == 8
+    assert c["total_considerado"] == pytest.approx(1000 + 500 + 2000 + 3000 + 900 + 100 + 400 + 60)
+    corpo = cliente.get("/despesas").get_data(as_text=True)
+    assert "Mostrando as primeiras 3 de 11" in corpo and "todas=1" in corpo
+    todas = _contexto(cliente, "/despesas?todas=1")
+    assert len(todas["contas_exibidas"]) == 11 and todas["linhas_ocultas"] == 0

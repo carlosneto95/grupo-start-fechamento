@@ -1,0 +1,9 @@
+{% extends "_base.html" %}
+{# Página de erro genérica: nunca mostra traceback, SQL ou dado do Tiny.
+   O detalhe vai para logs/app.log (ver app/registro.py). #}
+{% block titulo %}{{ titulo }} — Grupo Start{% endblock %}
+{% block cabecalho %}{{ titulo }}{% endblock %}
+{% block corpo %}
+<p class="aviso-erro">{{ texto }}</p>
+<p><a href="{{ url_for('despesas.listar') }}">Voltar para Despesas</a></p>
+{% endblock %}

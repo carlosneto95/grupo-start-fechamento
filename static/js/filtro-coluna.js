@@ -173,7 +173,10 @@ async function carregarValores(container, busca) {
         // o que existe no recorte atual. Vai a query string da própria página,
         // que é o estado já aplicado — o servidor retira dela o filtro desta
         // coluna e ignora o que não for filtro (ordenar/direcao).
-        const url = `/api/valores-filtro?tabela=${encodeURIComponent(tabela)}`
+        // O endereço vem do servidor (url_for em _base.html): em produção o
+        // sistema roda sob um prefixo, e um "/api/..." fixo apontaria para
+        // outro sistema da mesma conta.
+        const url = `${document.body.dataset.apiValores}?tabela=${encodeURIComponent(tabela)}`
                   + `&coluna=${encodeURIComponent(coluna)}&q=${encodeURIComponent(busca)}`
                   + (location.search ? "&" + location.search.slice(1) : "");
         const resp = await fetch(url);

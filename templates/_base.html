@@ -6,27 +6,27 @@
     <title>{% block titulo %}Grupo Start{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body data-api-valores="{{ url_for('api.valores_filtro') }}">
     <header class="topo">
         <div class="topo-interno">
-            <a class="marca" href="{{ url_for('despesas') }}">
+            <a class="marca" href="{{ url_for('despesas.listar') }}">
                 Grupo Start <span>Fechamento</span>
             </a>
             <nav class="navegacao">
                 {# 'ativo' marca em qual seção o usuário está. #}
-                <a href="{{ url_for('dashboard') }}"
+                <a href="{{ url_for('dashboard.painel') }}"
                    class="{{ 'ativo' if secao == 'dashboard' }}">Resultados</a>
-                <a href="{{ url_for('despesas') }}"
+                <a href="{{ url_for('despesas.listar') }}"
                    class="{{ 'ativo' if secao == 'despesas' }}">Despesas</a>
-                <a href="{{ url_for('receitas_vendas') }}"
+                <a href="{{ url_for('receitas.vendas') }}"
                    class="{{ 'ativo' if secao == 'receitas_vendas' }}">Receitas Vendas</a>
-                <a href="{{ url_for('receitas_servicos') }}"
+                <a href="{{ url_for('receitas.servicos') }}"
                    class="{{ 'ativo' if secao == 'receitas_servicos' }}">Receitas Serviços</a>
-                <a href="{{ url_for('analise_receitas') }}"
+                <a href="{{ url_for('analise.receitas') }}"
                    class="{{ 'ativo' if secao == 'analise_receitas' }}">Análise Receitas</a>
-                <a href="{{ url_for('extracao') }}"
+                <a href="{{ url_for('extracao.tela') }}"
                    class="{{ 'ativo' if secao == 'extracao' }}">Sincronizar</a>
-                <a href="{{ url_for('configuracoes_exclusoes') }}"
+                <a href="{{ url_for('admin.exclusoes') }}"
                    class="{{ 'ativo' if secao == 'config' }}">Configurações</a>
             </nav>
         </div>

@@ -8,9 +8,11 @@ primária OU a subcategoria dela estiver nas regras de exclusão.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
+from app import auditoria
 from app.db import get_conn
+from app.dinheiro import para_centavos, para_reais
 from app.ordenacao import ordenar_linhas
 from app.visao import (ANO_MINIMO, FILTRO_SQL_CONTAS, SEM_VALOR, casa_data,
                        formatar_valor, rotulo_consideracao)
@@ -22,80 +24,49 @@ COLUNAS = [
     "historico", "competencia",
 ]
 
+# Colunas monetárias: no banco em centavos (valor_centavos...), na linha lida
+# em reais Decimal (valor...). Ver app/dinheiro.py.
+MONETARIAS = ("valor", "saldo", "pago")
+
+
+def _para_banco(linha: dict) -> dict:
+    """Linha no formato do código (reais) -> parâmetros do INSERT (centavos)."""
+    dados = {c: linha.get(c) for c in COLUNAS if c not in MONETARIAS}
+    for c in MONETARIAS:
+        dados[f"{c}_centavos"] = para_centavos(linha.get(c))
+    return dados
+
+
+def _em_reais(linha: dict) -> dict:
+    """Linha lida do banco (centavos) -> linha do código, com `valor`, `saldo`
+    e `pago` em reais Decimal. As colunas *_centavos continuam na linha para
+    quem precisar somar inteiro."""
+    for c in MONETARIAS:
+        linha[c] = para_reais(linha.get(f"{c}_centavos"))
+    return linha
+
+
+# Colunas lidas pelas LISTAGENS (Despesas, Dashboard, funis). Fica de fora o
+# que só a sincronização e a conferência usam (historico, forma de pagamento
+# em texto, centro de custo extraído do histórico, número do documento).
+COLUNAS_LISTAGEM = ", ".join(
+    [
+        "empresa", "id", "fornecedor", "data_emissao", "data_vencimento", "data_liquidacao",
+        "valor_centavos", "saldo_centavos", "pago_centavos", "situacao", "categoria",
+        "categoria_primaria", "subcategoria", "forma_pagamento", "competencia",
+        "considerar_manual", "atualizado_em",
+    ]
+)
+
 COLUNAS_FILTRO_VALIDAS = {"empresa", "fornecedor", "categoria_primaria", "subcategoria", "situacao"}
 COLUNAS_DATA_FILTRAVEIS = {"data_emissao", "data_vencimento", "data_liquidacao"}
-SEM_DATA = "SEM_DATA"
-
-MESES_PT = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-]
 
 
-def _parse_data_br(valor: str | None) -> date | None:
-    if not valor:
-        return None
-    try:
-        return datetime.strptime(valor, "%d/%m/%Y").date()
-    except ValueError:
-        return None
 
 
-def arvore_datas(coluna: str) -> dict:
-    """Monta {ano: {(mes_num, nome_mes): [(dia, iso), ...]}} + se existe alguma linha
-    sem data nessa coluna, pra montar o filtro tipo Excel (Ano > Mês > Dia)."""
-    if coluna not in COLUNAS_DATA_FILTRAVEIS:
-        raise ValueError(f"coluna inválida: {coluna}")
-
-    conn = get_conn()
-    try:
-        valores = [
-            r[0] for r in conn.execute(
-                f"SELECT {coluna} FROM contas_pagar WHERE {FILTRO_SQL_CONTAS}"
-            ).fetchall()
-        ]
-    finally:
-        conn.close()
-
-    tem_sem_data = any(not v for v in valores)
-    datas = sorted({d for d in (_parse_data_br(v) for v in valores) if d is not None})
-
-    arvore: dict[int, dict[tuple[int, str], list[tuple[int, str]]]] = {}
-    for d in datas:
-        mes_chave = (d.month, MESES_PT[d.month - 1])
-        arvore.setdefault(d.year, {}).setdefault(mes_chave, []).append((d.day, d.isoformat()))
-
-    return {"anos": arvore, "tem_sem_data": tem_sem_data}
 
 
-def arvore_competencias() -> dict:
-    """Monta {ano: [(mes_num, nome_mes, "MM/AAAA")]} para o filtro de competência.
 
-    Competência é guardada como texto "MM/AAAA", que ordenado alfabeticamente sai
-    errado (01/2027 viria antes de 12/2026). Aqui é ordenado como data de verdade."""
-    conn = get_conn()
-    try:
-        valores = [r[0] for r in conn.execute(
-            "SELECT DISTINCT competencia FROM contas_pagar "
-            f"WHERE competencia IS NOT NULL AND {FILTRO_SQL_CONTAS}"
-        ).fetchall()]
-    finally:
-        conn.close()
-
-    pares = []
-    tem_sem_competencia = False
-    for v in valores:
-        mes, _, ano = str(v).partition("/")
-        if mes.isdigit() and ano.isdigit():
-            pares.append((int(ano), int(mes), v))
-        else:
-            tem_sem_competencia = True
-
-    arvore: dict[int, list[tuple[int, str, str]]] = {}
-    for ano, mes, texto in sorted(pares):
-        arvore.setdefault(ano, []).append((mes, MESES_PT[mes - 1], texto))
-
-    return {"anos": arvore, "tem_sem_data": tem_sem_competencia}
 
 
 def upsert_contas(linhas: list[dict]) -> None:
@@ -105,11 +76,16 @@ def upsert_contas(linhas: list[dict]) -> None:
         return
 
     agora = datetime.now(timezone.utc).isoformat()
-    placeholders = ", ".join(f":{c}" for c in COLUNAS)
-    set_clause = ", ".join(f"{c}=excluded.{c}" for c in COLUNAS if c not in ("empresa", "id"))
+    # Nomes de coluna do BANCO (com *_centavos), escritos no código — nunca
+    # vindos de fora; por isso a montagem com f-string é segura.
+    colunas_banco = list(_para_banco({}))
+    placeholders = ", ".join(f":{c}" for c in colunas_banco)
+    set_clause = ", ".join(
+        f"{c}=excluded.{c}" for c in colunas_banco if c not in ("empresa", "id")
+    )
 
     sql = f"""
-        INSERT INTO contas_pagar ({", ".join(COLUNAS)}, atualizado_em)
+        INSERT INTO contas_pagar ({", ".join(colunas_banco)}, atualizado_em)
         VALUES ({placeholders}, :atualizado_em)
         ON CONFLICT(empresa, id) DO UPDATE SET {set_clause}, atualizado_em=excluded.atualizado_em
     """
@@ -117,7 +93,7 @@ def upsert_contas(linhas: list[dict]) -> None:
     conn = get_conn()
     try:
         for linha in linhas:
-            dados = {c: linha.get(c) for c in COLUNAS}
+            dados = _para_banco(linha)
             dados["atualizado_em"] = agora
             conn.execute(sql, dados)
         conn.commit()
@@ -134,18 +110,32 @@ def mapa_por_id(empresa: str) -> dict[str, dict]:
         ).fetchall()
     finally:
         conn.close()
-    return {str(l["id"]): dict(l) for l in linhas}
+    return {str(l["id"]): _em_reais(dict(l)) for l in linhas}
 
 
-def definir_manual(empresa: str, id_conta: str, considerar: bool | None) -> None:
+def definir_manual(empresa: str, id_conta: str, considerar: bool | None) -> bool:
+    """Grava o override Considerar/Desconsiderar da conta, com auditoria.
+
+    Devolve False se a conta não existe (nada é gravado nem auditado)."""
     valor = None if considerar is None else (1 if considerar else 0)
     conn = get_conn()
     try:
+        linha = conn.execute(
+            "SELECT considerar_manual FROM contas_pagar WHERE empresa=? AND id=?",
+            (empresa, id_conta),
+        ).fetchone()
+        if linha is None:
+            return False
         conn.execute(
             "UPDATE contas_pagar SET considerar_manual=? WHERE empresa=? AND id=?",
             (valor, empresa, id_conta),
         )
+        auditoria.registrar(
+            conn, "marcar", "conta", str(id_conta), empresa,
+            {"considerar_manual": linha["considerar_manual"]}, {"considerar_manual": valor},
+        )
         conn.commit()
+        return True
     finally:
         conn.close()
 
@@ -169,11 +159,18 @@ def definir_regras_exclusao(tipo: str, valores: list[str]) -> None:
 
     conn = get_conn()
     try:
+        antes = sorted(
+            r[0] for r in conn.execute("SELECT valor FROM regras_exclusao WHERE tipo=?", (tipo,))
+        )
+        depois = sorted(set(valores))
+        if antes == depois:
+            return  # nada mudou: não regrava nem polui a auditoria
         conn.execute("DELETE FROM regras_exclusao WHERE tipo=?", (tipo,))
         conn.executemany(
             "INSERT INTO regras_exclusao (tipo, valor) VALUES (?, ?)",
-            [(tipo, v) for v in valores],
+            [(tipo, v) for v in depois],
         )
+        auditoria.registrar(conn, "regras_exclusao", "regras_exclusao", tipo, None, antes, depois)
         conn.commit()
     finally:
         conn.close()
@@ -228,10 +225,11 @@ def listar_contas(
     competencias: set[str] | None = None,
     consideracao: set[str] | None = None,
     valores_sel: set[str] | None = None,
+    ordenado: bool = True,
 ) -> list[dict]:
     """filtros: valores exatos (empresa, competencia, categoria_primaria, subcategoria).
-    filtros_data: {"data_emissao": {"2026-08-05", ..., SEM_DATA}, ...} — conjunto exato de
-    datas (formato ISO) a manter, tipo o filtro de data do Excel (Ano > Mês > Dia com
+    filtros_data: {"data_emissao": {"05/08/2026", "08/2026", "(vazio)", ...}, ...} — conjunto exato de
+    seleção da árvore Ano > Mês > Dia, colapsada (ver visao.casa_data), como o filtro do Excel (com
     checkbox). Uma coluna ausente do dict = sem filtro nessa coluna (mostra tudo).
     ordenar/direcao: coluna de ordenação e "asc"/"desc" (padrão: vencimento crescente)."""
     filtros = filtros or {}
@@ -262,11 +260,14 @@ def listar_contas(
     # Só o período que o sistema exibe — o resto continua no banco, mas fora da visão.
     condicoes.append(FILTRO_SQL_CONTAS)
 
-    sql = "SELECT * FROM contas_pagar WHERE " + " AND ".join(condicoes)
+    # Colunas explícitas em vez de SELECT *: o `historico` é texto livre longo,
+    # nenhuma listagem o usa, e trazê-lo nas 15 mil linhas era o maior custo
+    # de leitura do Dashboard. A lista é fixa no código (nada vem de fora).
+    sql = f"SELECT {COLUNAS_LISTAGEM} FROM contas_pagar WHERE " + " AND ".join(condicoes)
 
     conn = get_conn()
     try:
-        linhas = [dict(r) for r in conn.execute(sql, parametros).fetchall()]
+        linhas = [_em_reais(dict(r)) for r in conn.execute(sql, parametros).fetchall()]
     finally:
         conn.close()
 
@@ -306,6 +307,10 @@ def listar_contas(
             if rotulo_consideracao(l["considerar_efetivo"]) in consideracao
         ]
 
+    # O funil de coluna só precisa do CONJUNTO de valores: ordenar 15 mil
+    # linhas para descartar a ordem era metade do tempo da lista.
+    if not ordenado:
+        return linhas
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO, "data_vencimento")
 
 
@@ -319,7 +324,9 @@ def competencias_disponiveis() -> list[str]:
         das_contas = {
             r[0] for r in conn.execute(
                 f"SELECT DISTINCT competencia FROM contas_pagar "
-                f"WHERE competencia IS NOT NULL AND {FILTRO_SQL_CONTAS}"
+                # Competência vazia passa pelo filtro de visão (aparece em
+                # Despesas), mas não é opção de slicer: não é um mês.
+                f"WHERE TRIM(COALESCE(competencia, '')) <> '' AND {FILTRO_SQL_CONTAS}"
             ).fetchall()
         }
         das_notas = {

@@ -19,6 +19,7 @@ ficam em tests/golden/esperado/, fora do git.
 from __future__ import annotations
 
 import shutil
+from decimal import Decimal
 import sqlite3
 import tempfile
 from contextlib import contextmanager
@@ -63,8 +64,11 @@ def _competencias_fechadas(conn: sqlite3.Connection, ate: str | None) -> list[st
 def _limpo(valor):
     """Converte para JSON. Float com 6 casas: guarda mais que o centavo para a
     comparação poder dizer "mudou 0,004" em vez de esconder na arredondada."""
-    if isinstance(valor, float):
-        return round(valor, 6)
+    # Decimal (dinheiro desde a Fase 1) e float comparam na mesma escala: a
+    # fotografia é de NÚMEROS, não de tipos — o golden da Fase 0 foi tirado
+    # com float e tem de continuar valendo como juiz.
+    if isinstance(valor, (float, Decimal)):
+        return round(float(valor), 6)
     if isinstance(valor, dict):
         return {str(k): _limpo(v) for k, v in valor.items()}
     if isinstance(valor, (list, tuple)):
@@ -182,10 +186,11 @@ def _banco_temporario(origem: Path):
     `PRAGMA journal_mode=WAL` e `CREATE TABLE IF NOT EXISTS` ao conectar, e a
     Fase 1 vai aplicar migrações — tudo isso acontece na cópia."""
     import app.db as db
+    from app.db import abrir_somente_leitura
 
     pasta = Path(tempfile.mkdtemp(prefix="gsf_golden_"))
     destino = pasta / "golden.db"
-    origem_conn = sqlite3.connect(f"file:{origem.as_posix()}?mode=ro", uri=True)
+    origem_conn = abrir_somente_leitura(origem)
     destino_conn = sqlite3.connect(destino)
     try:
         origem_conn.backup(destino_conn)
@@ -206,16 +211,14 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
     """Roda todos os cenários sobre uma cópia de `caminho_db` e devolve a fotografia."""
     from flask import template_rendered
 
-    from tests.conftest import carregar_app_web
+    from tests.conftest import cliente_para
 
     with _banco_temporario(Path(caminho_db)) as copia:
         with sqlite3.connect(copia) as conn:
             competencias = _competencias_fechadas(conn, ate)
 
-        web = carregar_app_web()
-        app = web.app
-        app.config["TESTING"] = True
-        cliente = app.test_client()
+        cliente = cliente_para(copia)
+        app = cliente.application
         capturados: list[dict] = []
 
         def receptor(sender, template, context, **extra):
@@ -280,15 +283,9 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
                     if empresa and coluna != "empresa":
                         params["empresa"] = empresa
                     r = cliente.get("/api/valores-filtro", query_string=params).get_json()
-                    # Achado da Fase 0: a ordem da lista NÃO é determinística
-                    # quando dois valores diferem só na caixa ("Fulano" e
-                    # "FULANO"). valores() parte de um set (ordem muda a cada
-                    # processo) e ordena por casefold, que empata os dois. Sem
-                    # esta normalização o golden falharia por acaso, não por
-                    # mudança de código. A lista vira conjunto ordenado pelo
-                    # texto cru; total e truncado continuam comparados como são.
-                    if r.get("tipo") == "lista":
-                        r["valores"] = sorted(r["valores"])
+                    # Desde a Fase 1 a ordem da lista é determinística
+                    # (desempate pelo texto cru em filtros_coluna.valores), e
+                    # passa a ser julgada pelo golden como está na tela.
                     cen[f"funil|{tabela}|{coluna}|{empresa or 'todas'}"] = r
 
     return _limpo(foto)

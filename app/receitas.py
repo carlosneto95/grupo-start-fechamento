@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from app import auditoria
 from app.db import get_conn
+from app.dinheiro import para_centavos, para_reais
 from app.ordenacao import ordenar_linhas
 from app.visao import (FILTRO_SQL_NOTAS, SEM_VALOR, casa_data,
                        formatar_valor, rotulo_consideracao)
@@ -184,7 +186,9 @@ def upsert_notas(linhas: list[dict]) -> None:
     if not linhas:
         return
     agora = datetime.now(timezone.utc).isoformat()
-    placeholders = ", ".join(f":{c}" for c in COLUNAS)
+    # `valor` (reais, no código) é gravado como `valor_centavos` (banco).
+    colunas_banco = ["valor_centavos" if c == "valor" else c for c in COLUNAS]
+    placeholders = ", ".join(f":{c}" for c in colunas_banco)
     chaves = ("empresa", "tipo_nota", "id")
 
     def atualizacao(coluna: str) -> str:
@@ -197,10 +201,10 @@ def upsert_notas(linhas: list[dict]) -> None:
             return "competencia=COALESCE(excluded.competencia, notas.competencia)"
         return f"{coluna}=excluded.{coluna}"
 
-    set_clause = ", ".join(atualizacao(c) for c in COLUNAS if c not in chaves)
+    set_clause = ", ".join(atualizacao(c) for c in colunas_banco if c not in chaves)
 
     sql = f"""
-        INSERT INTO notas ({", ".join(COLUNAS)}, atualizado_em)
+        INSERT INTO notas ({", ".join(colunas_banco)}, atualizado_em)
         VALUES ({placeholders}, :atualizado_em)
         ON CONFLICT(empresa, tipo_nota, id)
         DO UPDATE SET {set_clause}, atualizado_em=excluded.atualizado_em
@@ -208,7 +212,8 @@ def upsert_notas(linhas: list[dict]) -> None:
     conn = get_conn()
     try:
         for linha in linhas:
-            dados = {c: linha.get(c) for c in COLUNAS}
+            dados = {c: linha.get(c) for c in COLUNAS if c != "valor"}
+            dados["valor_centavos"] = para_centavos(linha.get("valor"))
             dados["atualizado_em"] = agora
             conn.execute(sql, dados)
         conn.commit()
@@ -217,41 +222,71 @@ def upsert_notas(linhas: list[dict]) -> None:
 
 
 def definir_ajuste(empresa: str, tipo_nota: str, id_nota: str,
-                   competencia: str | None = None, categoria: str | None = None) -> None:
-    """Grava a edição manual. Passar string vazia limpa o ajuste (volta ao do ERP)."""
-    campos, valores = [], []
-    if competencia is not None:
-        campos.append("competencia_manual = ?")
-        valores.append(competencia or None)
-    if categoria is not None:
-        campos.append("categoria_manual = ?")
-        valores.append(categoria or None)
-    if not campos:
-        return
+                   competencia: str | None = None, categoria: str | None = None) -> bool:
+    """Grava a edição manual, com auditoria. String vazia limpa o ajuste (volta
+    ao do ERP). Devolve False se a nota não existe.
 
-    valores += [empresa, tipo_nota, str(id_nota)]
+    O formato da competência (MM/AAAA, mês 01-12) é garantido pelo CHECK da
+    migração 2: valor torto levanta sqlite3.IntegrityError e nada é gravado."""
+    campos: dict[str, str | None] = {}
+    if competencia is not None:
+        campos["competencia_manual"] = competencia or None
+    if categoria is not None:
+        campos["categoria_manual"] = categoria or None
+    if not campos:
+        return True
+
     conn = get_conn()
     try:
+        chave = (empresa, tipo_nota, str(id_nota))
+        linha = conn.execute(
+            "SELECT competencia_manual, categoria_manual FROM notas"
+            " WHERE empresa=? AND tipo_nota=? AND id=?",
+            chave,
+        ).fetchone()
+        if linha is None:
+            return False
+        # Os nomes de coluna vêm do dicionário acima, escrito no código — nunca
+        # da requisição. Por isso a f-string aqui é segura.
+        atribuicoes = ", ".join(f"{c} = ?" for c in campos)
         conn.execute(
-            f"UPDATE notas SET {', '.join(campos)} WHERE empresa=? AND tipo_nota=? AND id=?",
-            valores,
+            f"UPDATE notas SET {atribuicoes} WHERE empresa=? AND tipo_nota=? AND id=?",
+            [*campos.values(), *chave],
+        )
+        auditoria.registrar(
+            conn, "ajustar", "nota", f"{tipo_nota}:{id_nota}", empresa,
+            {c: linha[c] for c in campos}, campos,
         )
         conn.commit()
+        return True
     finally:
         conn.close()
 
 
 def definir_marcacao(empresa: str, tipo_nota: str, id_nota: str,
-                     considerar: bool | None) -> None:
-    """Grava o override da linha. None devolve a nota ao padrão da situação."""
+                     considerar: bool | None) -> bool:
+    """Grava o override da linha, com auditoria. None devolve a nota ao padrão
+    da situação. Devolve False se a nota não existe."""
     valor = None if considerar is None else int(bool(considerar))
     conn = get_conn()
     try:
+        chave = (empresa, tipo_nota, str(id_nota))
+        linha = conn.execute(
+            "SELECT considerar_manual FROM notas WHERE empresa=? AND tipo_nota=? AND id=?",
+            chave,
+        ).fetchone()
+        if linha is None:
+            return False
         conn.execute(
             "UPDATE notas SET considerar_manual=? WHERE empresa=? AND tipo_nota=? AND id=?",
-            (valor, empresa, tipo_nota, str(id_nota)),
+            (valor, *chave),
+        )
+        auditoria.registrar(
+            conn, "marcar", "nota", f"{tipo_nota}:{id_nota}", empresa,
+            {"considerar_manual": linha["considerar_manual"]}, {"considerar_manual": valor},
         )
         conn.commit()
+        return True
     finally:
         conn.close()
 
@@ -274,7 +309,10 @@ def _considerar_efetivo(linha: dict) -> bool:
 
 
 def _enriquecer(linha: dict) -> dict:
-    """Aplica a precedência do ajuste manual sobre o dado do ERP."""
+    """Aplica a precedência do ajuste manual sobre o dado do ERP, e traz o
+    valor do banco (centavos) para reais Decimal."""
+    if "valor_centavos" in linha:
+        linha["valor"] = para_reais(linha["valor_centavos"])
     linha["competencia_efetiva"] = linha.get("competencia_manual") or linha.get("competencia")
     categoria_efetiva = linha.get("categoria_manual") or linha.get("categoria")
     linha["categoria_efetiva"] = categoria_efetiva
@@ -293,14 +331,15 @@ def mapa_por_id(empresa: str) -> dict[tuple[str, str], dict]:
         linhas = conn.execute("SELECT * FROM notas WHERE empresa = ?", (empresa,)).fetchall()
     finally:
         conn.close()
-    return {(l["tipo_nota"], str(l["id"])): dict(l) for l in linhas}
+    return {(l["tipo_nota"], str(l["id"])): _enriquecer(dict(l)) for l in linhas}
 
 
 def listar_notas(filtros: dict | None = None, competencias: set[str] | None = None,
                  ordenar: str | None = None, direcao: str = "desc",
                  categorias: set[str] | None = None,
                  consideracao: set[str] | None = None,
-                 valores_sel: set[str] | None = None) -> list[dict]:
+                 valores_sel: set[str] | None = None,
+                 ordenado: bool = True) -> list[dict]:
     filtros = filtros or {}
     # Colunas cruas da tabela que o filtro de cabeçalho pode restringir. As
     # derivadas (competência e categoria efetivas) são tratadas mais abaixo.
@@ -372,6 +411,10 @@ def listar_notas(filtros: dict | None = None, competencias: set[str] | None = No
             if rotulo_consideracao(l["considerar_efetivo"]) in consideracao
         ]
 
+    # O funil de coluna só precisa do CONJUNTO de valores: ordenar 15 mil
+    # linhas para descartar a ordem era metade do tempo da lista.
+    if not ordenado:
+        return linhas
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO, "data_emissao")
 
 
@@ -427,37 +470,6 @@ def sincronizar_notas(cliente, empresa_nome: str, data_ini, data_fim, progresso=
     }
 
 
-def arvore_competencias_notas() -> dict:
-    """Anos e meses presentes nas notas, para o filtro em árvore (igual despesas).
-
-    Usa a competência EFETIVA (com o ajuste manual aplicado), senão uma nota
-    reclassificada continuaria aparecendo no mês antigo do filtro."""
-    conn = get_conn()
-    try:
-        valores = [
-            r[0] for r in conn.execute(
-                "SELECT DISTINCT COALESCE(competencia_manual, competencia) FROM notas "
-                f"WHERE COALESCE(competencia_manual, competencia) IS NOT NULL AND {FILTRO_SQL_NOTAS}"
-            ).fetchall()
-        ]
-    finally:
-        conn.close()
-
-    from app.repositorio_contas_pagar import MESES_PT
-
-    pares = []
-    tem_vazio = False
-    for v in valores:
-        mes, _, ano = str(v).partition("/")
-        if mes.isdigit() and ano.isdigit():
-            pares.append((int(ano), int(mes), v))
-        else:
-            tem_vazio = True
-
-    arvore: dict[int, list[tuple[int, str, str]]] = {}
-    for ano, mes, texto in sorted(pares):
-        arvore.setdefault(ano, []).append((mes, MESES_PT[mes - 1], texto))
-    return {"anos": arvore, "tem_sem_data": tem_vazio}
 
 
 def valores_distintos(coluna: str) -> list[str]:
@@ -521,14 +533,3 @@ TIPOS_ORDENACAO = {
 COLUNAS_ORDENAVEIS = set(TIPOS_ORDENACAO)
 
 
-def categorias_primarias_das_notas() -> list[str]:
-    """Categorias primárias presentes nas notas, já considerando o ajuste manual.
-
-    Inclui o rótulo de "sem categoria" quando houver nota sem classificar, para
-    dar como filtrá-las e resolvê-las."""
-    linhas = listar_notas()
-    valores = {l["categoria_primaria_efetiva"] for l in linhas if l["categoria_primaria_efetiva"]}
-    lista = sorted(valores)
-    if any(not l["categoria_primaria_efetiva"] for l in linhas):
-        lista.append(SEM_CATEGORIA_ROTULO)
-    return lista
