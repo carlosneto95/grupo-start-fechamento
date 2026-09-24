@@ -9,7 +9,7 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 3 — Identidade visual · 24/09/2026 · aguardando validação
+## Fase 3 — Identidade visual · 24/09/2026 · validada pelo Neto e mesclada (PR #8)
 
 ### O que foi feito
 - **Família visual do Controle de Impostos**: paleta (fundo `#F4F1EA`, superfície
