@@ -13,7 +13,7 @@ from flask import Flask, g, render_template, request
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from werkzeug.exceptions import HTTPException
 
-from app import configuracao, db, registro, seguranca
+from app import configuracao, db, pendencias, registro, seguranca
 
 csrf = CSRFProtect()
 
@@ -66,6 +66,9 @@ def criar_app(sobrescrever: dict | None = None) -> Flask:
             "usuario_nome": g.get("usuario_nome"),
             "pode_escrever": bool(escopo and escopo.pode_escrever),
             "eh_admin": bool(escopo and escopo.eh_admin),
+            # Selo "sincronizado há N dias" (Fase 4.1): consulta barata ao
+            # histórico de sincronização; fica vermelho acima de 2 dias.
+            "selo_sincronizacao": pendencias.selo(escopo) if escopo else None,
         }
 
     from app import web

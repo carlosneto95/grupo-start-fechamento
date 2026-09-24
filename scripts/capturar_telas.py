@@ -45,6 +45,7 @@ TELAS = [
     ("06_sincronizar", "/extracao", None),
     ("07_configuracoes", "/configuracoes/exclusoes", None),
     ("08_usuarios", "/admin/usuarios", None),
+    ("09_pendencias", "/pendencias", None),
 ]
 
 # Conta linhas INTEIRAMENTE visíveis na janela, sem rolar.
