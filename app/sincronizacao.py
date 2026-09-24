@@ -17,7 +17,7 @@ from datetime import date
 
 from app.reports.contas_pagar import _registro_para_linha
 from app.repositorio_contas_pagar import mapa_por_id, upsert_contas
-from app.trava import adquirir, renovar
+from app.trava import renovar
 
 # Campos que a listagem devolve e dá para comparar com o banco para achar mudanças.
 CAMPOS_COMPARAVEIS = [
@@ -75,27 +75,6 @@ def periodo_do_ano(ano: int) -> tuple[date, date]:
     return date(ano - 1, 11, 1), date(ano + 1, 2, 28)
 
 
-def sincronizar(
-    cliente,
-    empresa_nome: str,
-    ano: int | None = None,
-    forcar: bool = False,
-    progresso=None,
-    periodo: tuple[date, date] | None = None,
-    por: tuple[str, ...] = ("emissao", "vencimento"),
-) -> dict:
-    """Retorna um resumo do que foi feito, com a lista de mudanças detectadas.
-
-    Informe `ano` (usa o ano com folga nas pontas) ou `periodo` (datas exatas).
-    `por` define quais datas filtrar: ("emissao",), ("vencimento",) ou as duas.
-    Levanta SincronizacaoEmAndamento se outra sincronização já estiver rodando."""
-    if periodo is None:
-        if ano is None:
-            raise ValueError("informe ano ou periodo")
-        periodo = periodo_do_ano(ano)
-
-    with adquirir(empresa_nome):
-        return _sincronizar(cliente, empresa_nome, periodo, forcar, progresso, por)
 
 
 def _sincronizar(cliente, empresa_nome: str, periodo: tuple[date, date], forcar: bool,

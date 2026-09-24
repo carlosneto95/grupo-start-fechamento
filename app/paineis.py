@@ -34,6 +34,10 @@ from app.visao import ANO_MINIMO
 
 COLUNAS_FILTRO_DESPESAS = list(COLUNAS_FILTRAVEIS["despesas"])
 
+# Teto de linhas desenhadas na tela de Despesas sem "mostrar todas". 2 mil
+# cobre com folga um mês inteiro das três empresas (~1.300 lançamentos).
+LINHAS_NA_TELA = 2000
+
 
 def _filtros_da_url(args, colunas) -> dict:
     """Filtros de coluna vindos da URL: cada coluna manda seus valores marcados
@@ -61,8 +65,17 @@ def despesas(args) -> dict:
     direcao = "desc" if args.get("direcao") == "desc" else "asc"
 
     contas = consulta.despesas(filtros_coluna, ordenar=ordenar, direcao=direcao)
+    # A tela desenha no máximo LINHAS_NA_TELA linhas; "mostrar todas" (?todas=1)
+    # tira o limite. Totais, contagem e funis continuam sobre TODAS as linhas
+    # do recorte — só o HTML fica menor. Decisão do Neto (Fase 1): renderizar
+    # 15 mil linhas custava ~300 ms e 12 MB por abertura da tela.
+    todas = args.get("todas") == "1"
+    exibidas = contas if todas else contas[:LINHAS_NA_TELA]
     return {
         "contas": contas,
+        "contas_exibidas": exibidas,
+        "mostrando_todas": todas,
+        "linhas_ocultas": len(contas) - len(exibidas),
         "total_considerado": sum(c["valor"] or 0 for c in contas if c["considerar_efetivo"]),
         "ordenar": ordenar,
         "direcao": direcao,

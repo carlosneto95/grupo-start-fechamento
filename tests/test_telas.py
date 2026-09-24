@@ -98,3 +98,19 @@ def test_conta_sem_competencia_aparece_como_vazio(cliente, banco_exemplo):
     arvore = cliente.get("/api/valores-filtro?tabela=despesas&coluna=competencia").get_json()
     assert arvore["arvore"][-1]["valor"] == "(vazio)"
     assert "" not in _contexto(cliente, "/dashboard")["opcoes"]["competencia"]
+
+
+def test_despesas_limita_linhas_desenhadas_mas_soma_todas(cliente, monkeypatch):
+    """Fase 1 (decisão do Neto): a tela desenha no máximo LINHAS_NA_TELA
+    linhas; o total considerado e a contagem continuam sobre todas."""
+    from app import paineis
+
+    monkeypatch.setattr(paineis, "LINHAS_NA_TELA", 3)
+    c = _contexto(cliente, "/despesas")
+    assert len(c["contas_exibidas"]) == 3 and len(c["contas"]) == 11
+    assert c["linhas_ocultas"] == 8
+    assert c["total_considerado"] == pytest.approx(1000 + 500 + 2000 + 3000 + 900 + 100 + 400 + 60)
+    corpo = cliente.get("/despesas").get_data(as_text=True)
+    assert "Mostrando as primeiras 3 de 11" in corpo and "todas=1" in corpo
+    todas = _contexto(cliente, "/despesas?todas=1")
+    assert len(todas["contas_exibidas"]) == 11 and todas["linhas_ocultas"] == 0

@@ -470,37 +470,6 @@ def sincronizar_notas(cliente, empresa_nome: str, data_ini, data_fim, progresso=
     }
 
 
-def arvore_competencias_notas() -> dict:
-    """Anos e meses presentes nas notas, para o filtro em árvore (igual despesas).
-
-    Usa a competência EFETIVA (com o ajuste manual aplicado), senão uma nota
-    reclassificada continuaria aparecendo no mês antigo do filtro."""
-    conn = get_conn()
-    try:
-        valores = [
-            r[0] for r in conn.execute(
-                "SELECT DISTINCT COALESCE(competencia_manual, competencia) FROM notas "
-                f"WHERE COALESCE(competencia_manual, competencia) IS NOT NULL AND {FILTRO_SQL_NOTAS}"
-            ).fetchall()
-        ]
-    finally:
-        conn.close()
-
-    from app.repositorio_contas_pagar import MESES_PT
-
-    pares = []
-    tem_vazio = False
-    for v in valores:
-        mes, _, ano = str(v).partition("/")
-        if mes.isdigit() and ano.isdigit():
-            pares.append((int(ano), int(mes), v))
-        else:
-            tem_vazio = True
-
-    arvore: dict[int, list[tuple[int, str, str]]] = {}
-    for ano, mes, texto in sorted(pares):
-        arvore.setdefault(ano, []).append((mes, MESES_PT[mes - 1], texto))
-    return {"anos": arvore, "tem_sem_data": tem_vazio}
 
 
 def valores_distintos(coluna: str) -> list[str]:
@@ -564,14 +533,3 @@ TIPOS_ORDENACAO = {
 COLUNAS_ORDENAVEIS = set(TIPOS_ORDENACAO)
 
 
-def categorias_primarias_das_notas() -> list[str]:
-    """Categorias primárias presentes nas notas, já considerando o ajuste manual.
-
-    Inclui o rótulo de "sem categoria" quando houver nota sem classificar, para
-    dar como filtrá-las e resolvê-las."""
-    linhas = listar_notas()
-    valores = {l["categoria_primaria_efetiva"] for l in linhas if l["categoria_primaria_efetiva"]}
-    lista = sorted(valores)
-    if any(not l["categoria_primaria_efetiva"] for l in linhas):
-        lista.append(SEM_CATEGORIA_ROTULO)
-    return lista
