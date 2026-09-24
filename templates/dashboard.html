@@ -9,6 +9,15 @@
 <form method="get" id="form-analise">
     {# A competência continua no formato de árvore Ano > Mês, igual às outras telas. #}
     <div class="barra-competencia">
+        {# Sem competência marcada, o Dashboard mostra o período padrão (até o
+           último mês com receita). Escrito aqui para ninguém ler o Total
+           achando que é "tudo". #}
+        {% if periodo_padrao %}
+        <p class="legenda periodo-padrao">
+            Período: <strong>{{ periodo_padrao.inicio }} a {{ periodo_padrao.fim }}</strong>
+            — padrão (até o último mês com receita). Marque competências no filtro para mudar.
+        </p>
+        {% endif %}
         <div class="cartoes cartoes-compactos">
             <div class="cartao positivo">
                 <span class="cartao-rotulo">Receita</span>

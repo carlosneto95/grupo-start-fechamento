@@ -68,12 +68,22 @@ def test_dashboard_usa_a_competencia_manual_da_nota(cliente):
     assert c["quantidade_notas"] == 1
 
 
-def test_dashboard_sem_slicer_inclui_nota_sem_competencia(cliente):
-    """Comportamento ATUAL: sem slicer, a nota sem competência (700) entra na
-    receita do dashboard — listar_notas só filtra competência quando há slicer.
-    Registrado para o relatório; o golden master do banco real mostra o tamanho."""
+def test_dashboard_sem_slicer_usa_o_periodo_padrao(cliente):
+    """Correção da Fase 1 (item 3): sem competência marcada, o Dashboard mostra
+    de 01/2026 ao último mês com receita (aqui 02/2026, pela nota 203 ajustada
+    à mão) — não "tudo". Fica fora a nota sem competência (700) e a conta de
+    competência futura não entraria no Total."""
     c = _contexto(cliente, "/dashboard")
-    assert c["total_receita"] == pytest.approx(20000 + 10000 + 1000 + 700)
+    assert c["periodo_padrao"]["inicio"] == "01/2026"
+    assert c["periodo_padrao"]["fim"] == "02/2026"
+    assert c["total_receita"] == pytest.approx(20000 + 10000 + 1000)
+    corpo = cliente.get("/dashboard").get_data(as_text=True)
+    assert "01/2026 a 02/2026" in corpo
+
+
+def test_dashboard_com_slicer_nao_usa_periodo_padrao(cliente):
+    c = _contexto(cliente, "/dashboard?competencia=01/2026")
+    assert c["periodo_padrao"] is None
 
 
 def test_conta_sem_competencia_aparece_como_vazio(cliente, banco_exemplo):

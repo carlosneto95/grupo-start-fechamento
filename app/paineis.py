@@ -13,6 +13,8 @@ estava em app.py, só mudou de endereço — o golden master confere.
 
 from __future__ import annotations
 
+from datetime import date
+
 from app import consulta
 from app.analise_receitas import grades
 from app.centros_de_custo import separar as separar_centros_de_custo
@@ -28,6 +30,7 @@ from app.repositorio_contas_pagar import (
     listar_valores_distintos,
 )
 from app.resumos import TIPOS_ORDENACAO_RESULTADO, arvore_de_gastos
+from app.visao import ANO_MINIMO
 
 COLUNAS_FILTRO_DESPESAS = list(COLUNAS_FILTRAVEIS["despesas"])
 
@@ -107,6 +110,33 @@ def receitas(args, tabela: str) -> dict:
 # --------------------------------------------------------------------------
 
 
+def periodo_padrao_dashboard(hoje: date | None = None) -> dict:
+    """Competências de 01/ANO_MINIMO até o último mês com RECEITA considerada.
+
+    A receita define o fim porque é ela que para quando o mês ainda não foi
+    faturado; a despesa tem parcela lançada anos à frente. Sem nenhuma nota,
+    o fim é o mês corrente."""
+    hoje = hoje or date.today()
+    fim = (hoje.year, hoje.month)
+    meses = [
+        (int(c[3:]), int(c[:2]))
+        for c in (n["competencia_efetiva"] for n in listar_notas({}) if n["considerar_efetivo"])
+        if c and len(c) == 7 and c[:2].isdigit() and c[3:].isdigit() and 1 <= int(c[:2]) <= 12
+    ]
+    if meses:
+        fim = max(meses)
+    competencias = []
+    ano, mes = ANO_MINIMO, 1
+    while (ano, mes) <= fim:
+        competencias.append(f"{mes:02d}/{ano}")
+        ano, mes = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+    return {
+        "inicio": competencias[0] if competencias else None,
+        "fim": competencias[-1] if competencias else None,
+        "competencias": competencias,
+    }
+
+
 def dashboard(args) -> dict:
     """Slicers à esquerda, árvore de gastos no meio e os quadros de resultado
     (Total, Vendas, Serviços) à direita."""
@@ -115,9 +145,16 @@ def dashboard(args) -> dict:
         "categoria_primaria": _multi(args, "categoria_primaria"),
         "subcategoria": _multi(args, "subcategoria"),
     }
-    # Competência também é slicer aqui: nada marcado significa todas.
+    # Competência também é slicer aqui. Nada marcado NÃO significa mais
+    # "todas" (decisão do Neto, Fase 1): o Total somava parcelas lançadas até
+    # 2032 contra uma receita que para no último mês faturado, e não era
+    # resultado de período nenhum. Sem seleção, vale o período padrão —
+    # de 01/ANO_MINIMO ao último mês com receita — escrito no cabeçalho.
     competencias_marcadas = _multi(args, "competencia")
-    competencias_sel = set(competencias_marcadas) or None
+    periodo_padrao = None if competencias_marcadas else periodo_padrao_dashboard()
+    competencias_sel = (
+        set(competencias_marcadas) if competencias_marcadas else set(periodo_padrao["competencias"])
+    )
 
     # As colunas do banco vão em `filtros`; a competência é tratada à parte
     # porque as notas guardam a delas noutra coluna (com o ajuste manual).
@@ -169,6 +206,7 @@ def dashboard(args) -> dict:
         "total_despesa": total_despesa,
         "resultado": total_receita - total_despesa,
         "margem": ((total_receita - total_despesa) / total_receita * 100) if total_receita else 0,
+        "periodo_padrao": periodo_padrao,
         "quantidade_notas": len(faturadas),
         "quantidade_contas": len(consideradas),
         "filtros": filtros,
