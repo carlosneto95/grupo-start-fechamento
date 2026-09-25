@@ -1,4 +1,4 @@
-"""
+r"""
 Tarefa diária (agendada no PythonAnywhere na Fase 5; roda igual no Windows):
 
     1. backup verificado do banco (retenção de 30 dias);
