@@ -9,8 +9,8 @@ from datetime import date
 
 import pytest
 
-from app import sincronizar_tudo, trava
-from app.config.companies import CompanyConfig
+from financeiro import sincronizar_tudo, trava
+from financeiro.config.companies import CompanyConfig
 
 PERIODO = (date(2025, 11, 1), date(2027, 2, 28))
 
@@ -167,7 +167,7 @@ def test_pedido_invalido_e_recusado(campo, valor):
 def test_tela_de_sincronizar_mostra_historico(cliente, monkeypatch):
     # As empresas vêm do .env da máquina; o teste fixa as suas para não
     # depender de onde roda (o CI não tem .env).
-    import app.web.extracao as tela
+    import financeiro.web.extracao as tela
 
     monkeypatch.setattr(tela, "load_companies", lambda: [_empresa("ALFA")])
     _rodar([_empresa("ALFA")], {"ALFA": ClienteFalso(quebra_em="notas")})

@@ -7,8 +7,8 @@ o fechamento inteiro sem mudar nenhum dado do banco.
 
 import pytest
 
-from app import receitas
-from app.repositorio_contas_pagar import _considerar_efetivo as considerar_conta
+from financeiro import receitas
+from financeiro.repositorio_contas_pagar import _considerar_efetivo as considerar_conta
 
 REGRAS = {"categoria_primaria": ["APORTE", "IMPOSTO"], "subcategoria": ["APORTE"]}
 

@@ -14,9 +14,9 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app.db import init_db
-from app.escopo import SISTEMA
-from app.repositorio_contas_pagar import COLUNAS, upsert_contas
+from financeiro.db import init_db
+from financeiro.escopo import SISTEMA
+from financeiro.repositorio_contas_pagar import COLUNAS, upsert_contas
 
 
 def main():

@@ -13,8 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config.companies import load_companies
-from app.tiny_client.api_client import TinyAPIClient
+from financeiro.config.companies import load_companies
+from financeiro.tiny_client.api_client import TinyAPIClient
 
 def main():
     empresas = load_companies()

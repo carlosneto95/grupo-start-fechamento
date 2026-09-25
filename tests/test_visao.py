@@ -7,7 +7,7 @@ tabela ou, pior, deixa passar linha que não devia.
 
 import pytest
 
-from app.visao import SEM_VALOR, casa_data, competencia_visivel, formatar_valor
+from financeiro.visao import SEM_VALOR, casa_data, competencia_visivel, formatar_valor
 
 
 @pytest.mark.parametrize(

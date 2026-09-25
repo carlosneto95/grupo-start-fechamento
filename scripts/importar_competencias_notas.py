@@ -27,8 +27,8 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app import auditoria, db
-from app.db import fazer_backup, get_conn, init_db
+from financeiro import auditoria, db
+from financeiro.db import fazer_backup, get_conn, init_db
 
 MESES = {
     "JANEIRO": 1, "FEVEREIRO": 2, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6,
@@ -236,7 +236,7 @@ def main():
         for empresa, nf, emissao, valor in sem_par[:10]:
             print(f"   {empresa}/NF {nf} emissão {emissao} R$ {valor:,.2f}")
 
-    from app.visao import ANO_MINIMO
+    from financeiro.visao import ANO_MINIMO
     saem = [m for m in mudancas if m[3][3:] < str(ANO_MINIMO)]
     if saem:
         total = sum(m[4] or 0 for m in saem)

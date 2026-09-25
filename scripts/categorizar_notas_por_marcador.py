@@ -20,8 +20,8 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app.escopo import SISTEMA
-from app.receitas import definir_ajuste, listar_notas
+from financeiro.escopo import SISTEMA
+from financeiro.receitas import definir_ajuste, listar_notas
 
 # Marcador (sem acento, maiúsculo) -> categoria primária.
 # Usamos os mesmos nomes das categorias de despesa para que o comparativo do

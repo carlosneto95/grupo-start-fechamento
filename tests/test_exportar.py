@@ -13,8 +13,8 @@ from datetime import datetime
 import pytest
 from openpyxl import load_workbook
 
-from app import dre, exportar, paineis
-from app.escopo import SISTEMA
+from financeiro import dre, exportar, paineis
+from financeiro.escopo import SISTEMA
 from tests.conftest import _conta, cliente_para, gravar
 
 

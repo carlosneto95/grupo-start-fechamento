@@ -13,8 +13,8 @@ import time
 
 import pytest
 
-from app import escopo as esc
-from app.escopo import SISTEMA, Escopo
+from financeiro import escopo as esc
+from financeiro.escopo import SISTEMA, Escopo
 from tests.conftest import SENHA_TESTE, cliente_para, criar_usuario, entrar
 
 GETS = [
@@ -407,8 +407,8 @@ def test_troca_de_senha_recusa_o_que_nao_presta(banco_exemplo, atual, nova, repe
 @pytest.fixture
 def empresas_fixas(monkeypatch):
     """A lista de empresas vem do .env da máquina; o teste fixa a sua (o CI não tem .env)."""
-    from app.config.companies import CompanyConfig
-    import app.web.admin as tela
+    from financeiro.config.companies import CompanyConfig
+    import financeiro.web.admin as tela
 
     fixas = [CompanyConfig(k, k, "t" * 40, None, None) for k in ("ALFA", "BETA")]
     monkeypatch.setattr(tela, "load_companies", lambda: fixas)
@@ -475,8 +475,8 @@ def test_admin_nao_rebaixa_a_si_mesmo(banco_exemplo):
 
 
 def test_repositorio_erra_sem_escopo(banco_exemplo):
-    from app.receitas import listar_notas
-    from app.repositorio_contas_pagar import listar_contas, listar_valores_distintos
+    from financeiro.receitas import listar_notas
+    from financeiro.repositorio_contas_pagar import listar_contas, listar_valores_distintos
 
     for chamada in (
         lambda: listar_contas(None),
@@ -488,7 +488,7 @@ def test_repositorio_erra_sem_escopo(banco_exemplo):
 
 
 def test_escopo_sem_empresa_nao_ve_nada(banco_exemplo):
-    from app.repositorio_contas_pagar import listar_contas
+    from financeiro.repositorio_contas_pagar import listar_contas
 
     vazio = Escopo(usuario_id=1, login="x", perfil="financeiro", empresas=frozenset())
     assert listar_contas(vazio) == []
@@ -497,7 +497,7 @@ def test_escopo_sem_empresa_nao_ve_nada(banco_exemplo):
 
 @pytest.mark.parametrize("coluna", ["empresa; DROP TABLE notas", "historico", "1=1 OR empresa"])
 def test_nome_de_coluna_fora_da_lista_branca_e_recusado(banco_exemplo, coluna):
-    from app.repositorio_contas_pagar import listar_contas, listar_valores_distintos
+    from financeiro.repositorio_contas_pagar import listar_contas, listar_valores_distintos
 
     with pytest.raises(ValueError):
         listar_valores_distintos(SISTEMA, coluna)
@@ -519,7 +519,7 @@ def test_escopo_so_aceita_perfil_conhecido():
 
 
 def test_listagem_de_notas_nao_le_cpf(banco_exemplo):
-    from app.receitas import listar_notas
+    from financeiro.receitas import listar_notas
 
     assert all("cliente_cpf_cnpj" not in n for n in listar_notas(SISTEMA))
 
@@ -534,7 +534,7 @@ def test_listagem_de_notas_nao_le_cpf(banco_exemplo):
     ],
 )
 def test_cpf_mascarado(doc, esperado):
-    from app.validacao import mascarar_documento
+    from financeiro.validacao import mascarar_documento
 
     assert mascarar_documento(doc) == esperado
 

@@ -26,11 +26,11 @@ sys.path.insert(0, str(RAIZ))
 
 # Só funções PURAS do app: nenhuma delas abre conexão. Assim o relatório usa
 # exatamente a mesma regra da tela sem passar pelo get_conn (que grava PRAGMA).
-from app.centros_de_custo import separar  # noqa: E402
-from app.db import abrir_somente_leitura  # noqa: E402
-from app.receitas import _enriquecer  # noqa: E402
-from app.repositorio_contas_pagar import _considerar_efetivo, _em_reais  # noqa: E402
-from app.visao import ANO_MINIMO, formatar_valor  # noqa: E402
+from financeiro.centros_de_custo import separar  # noqa: E402
+from financeiro.db import abrir_somente_leitura  # noqa: E402
+from financeiro.receitas import _enriquecer  # noqa: E402
+from financeiro.repositorio_contas_pagar import _considerar_efetivo, _em_reais  # noqa: E402
+from financeiro.visao import ANO_MINIMO, formatar_valor  # noqa: E402
 
 BRT_OFFSET_H = -3  # horário de Brasília fixo (sem horário de verão desde 2019)
 
@@ -80,7 +80,7 @@ def relatorio(caminho: Path, hoje: datetime) -> str:
 
     # Visão = o que a tela mostra hoje (FILTRO_SQL_CONTAS / FILTRO_SQL_NOTAS).
     def conta_visivel(c):
-        # Réplica de FILTRO_SQL_CONTAS (app/visao.py): competência vazia passa
+        # Réplica de FILTRO_SQL_CONTAS (financeiro/visao.py): competência vazia passa
         # (desde a Fase 1) e o resto é comparação de TEXTO do ano.
         comp = (c["competencia"] or "").strip()
         return not comp or comp[3:7] >= str(ANO_MINIMO)

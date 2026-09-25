@@ -11,8 +11,8 @@ import pytest
 from openpyxl import load_workbook
 from werkzeug.datastructures import MultiDict
 
-from app import dre, paineis
-from app.escopo import SISTEMA, Escopo
+from financeiro import dre, paineis
+from financeiro.escopo import SISTEMA, Escopo
 from tests.conftest import _conta, cliente_para, gravar
 
 

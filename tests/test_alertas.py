@@ -10,8 +10,8 @@ from datetime import date
 
 import pytest
 
-from app import alertas
-from app.escopo import SISTEMA
+from financeiro import alertas
+from financeiro.escopo import SISTEMA
 from tests.conftest import _conta, cliente_para, gravar
 
 HOJE = date(2026, 9, 25)

@@ -19,9 +19,9 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app import db, sincronizar_tudo  # noqa: E402
-from app.config.companies import load_companies  # noqa: E402
-from app.sincronizacao import periodo_do_ano  # noqa: E402
+from financeiro import db, sincronizar_tudo  # noqa: E402
+from financeiro.config.companies import load_companies  # noqa: E402
+from financeiro.sincronizacao import periodo_do_ano  # noqa: E402
 
 RETENCAO_DIAS = 30
 

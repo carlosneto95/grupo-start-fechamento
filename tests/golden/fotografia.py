@@ -185,8 +185,8 @@ def _banco_temporario(origem: Path):
     O banco congelado nunca é aberto em modo escrita: o app faz
     `PRAGMA journal_mode=WAL` e `CREATE TABLE IF NOT EXISTS` ao conectar, e a
     Fase 1 vai aplicar migrações — tudo isso acontece na cópia."""
-    import app.db as db
-    from app.db import abrir_somente_leitura
+    import financeiro.db as db
+    from financeiro.db import abrir_somente_leitura
 
     pasta = Path(tempfile.mkdtemp(prefix="gsf_golden_"))
     destino = pasta / "golden.db"
@@ -274,7 +274,7 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
         # 3) Listas dos funis com os filtros padrão (a cascata sem recorte) e
         #    com empresa marcada (a cascata cortando).
         progresso("funis")
-        from app.filtros_coluna import COLUNAS
+        from financeiro.filtros_coluna import COLUNAS
 
         for tabela, colunas in COLUNAS.items():
             # Usuários (Fase 2) não são dado do fechamento: o golden fotografa

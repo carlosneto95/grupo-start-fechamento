@@ -5,6 +5,16 @@
 {% block cabecalho %}Sincronizar com o Tiny{% endblock %}
 
 {% block corpo %}
+    {# Fase 5: depois da carga inicial, o banco do PythonAnywhere é a fonte da
+       verdade. Ajuste feito neste banco local não sobe e se perde. #}
+    {% if config.AMBIENTE != "production" %}
+    <p class="aviso aviso-local">
+        <strong>Ambiente local.</strong> O sistema oficial está no PythonAnywhere
+        (/financeiro). Desde a carga inicial, o banco de lá é a fonte da verdade:
+        ajuste feito aqui (Considerar, competência, categoria, fechamento) <strong>não
+        sobe e se perde</strong>. Use este ambiente só para testar.
+    </p>
+    {% endif %}
     {% if not empresas %}
     <p class="aviso">Nenhuma empresa configurada no arquivo <code>.env</code>.</p>
     {% else %}

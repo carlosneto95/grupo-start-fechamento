@@ -1,7 +1,7 @@
 """
 Atalho mantido por compatibilidade: sincroniza SÓ as notas (receitas).
 
-Desde a Fase 1 existe um job único (app/sincronizar_tudo.py) para despesas
+Desde a Fase 1 existe um job único (financeiro/sincronizar_tudo.py) para despesas
 e notas; este script só chama `scripts/sincronizar.py ... --so notas`, com
 histórico gravado em `sincronizacoes` como qualquer outra execução.
 

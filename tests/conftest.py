@@ -14,6 +14,7 @@ Duas regras que valem para toda a suíte:
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import sys
 import tempfile
@@ -25,13 +26,22 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-import app.db as db  # noqa: E402  (precisa do sys.path acima)
-from app.dinheiro import para_centavos  # noqa: E402
+import financeiro.configuracao as configuracao  # noqa: E402  (precisa do sys.path acima)
+import financeiro.db as db  # noqa: E402
+from financeiro.dinheiro import para_centavos  # noqa: E402
 
 # Redireciona já na coleta: qualquer import que chame init_db() cai aqui, nunca
 # em data/app.db. Cada teste que precisa de banco troca de novo por um próprio.
 _PASTA_SESSAO = Path(tempfile.mkdtemp(prefix="gsf_testes_"))
 db.DB_PATH = _PASTA_SESSAO / "coleta.db"
+
+# 3. **A suíte é hermética**: não lê o .env do projeto nem variáveis GSF_* do
+#    ambiente. No servidor o .env tem prefixo /financeiro, cookie Secure e o
+#    banco de produção; rodar os testes lá (deploy/testar.sh) não pode herdar
+#    nada disso. Toda configuração de teste vem de cliente_para.
+configuracao.ARQUIVO_ENV = _PASTA_SESSAO / "sem.env"
+for _nome in [n for n in os.environ if n.startswith(configuracao.PREFIXO)]:
+    del os.environ[_nome]
 
 
 # Chave só de teste: a fábrica recusa subir sem 32+ caracteres, e os testes não
@@ -44,8 +54,8 @@ SENHA_TESTE = "SenhaDeTeste123"
 
 def criar_usuario(perfil="admin", empresas=(), login=None, trocar=False) -> dict:
     """Cria um usuário sintético no banco configurado e devolve a linha."""
-    from app import usuarios
-    from app.escopo import SISTEMA
+    from financeiro import usuarios
+    from financeiro.escopo import SISTEMA
 
     login = login or f"teste-{perfil}-{'-'.join(sorted(empresas)).lower() or 'todas'}"
     existente = usuarios._por_login(login)
@@ -77,7 +87,7 @@ def cliente_para(caminho_db: Path, perfil="admin", empresas=(), csrf=False, loga
     o CSRF desligado; os testes de segurança ligam o CSRF e trocam o perfil.
 
     Os logs vão para a pasta temporária da sessão, não para logs/ do projeto."""
-    from app import criar_app
+    from financeiro import criar_app
 
     app = criar_app(
         {

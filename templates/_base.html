@@ -9,7 +9,7 @@
     <title>{% block titulo %}Grupo Start{% endblock %}</title>
     {# Fontes da família visual do Controle de Impostos: Fraunces (títulos),
        IBM Plex Sans (texto) e IBM Plex Mono (números). Google Fonts é a única
-       origem externa liberada na CSP (app/seguranca.py). #}
+       origem externa liberada na CSP (financeiro/seguranca.py). #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -19,7 +19,7 @@
 <body data-api-valores="{{ url_for('api.valores_filtro') }}">
     {% import "_icones.html" as ic %}
     {# Barra superior escura, sem menu lateral: logo à esquerda, menu com ícone e
-       texto, usuário e Sair à direita — mesmo padrão do Impostos e da ADBA. #}
+       texto, usuário e Sair à direita — mesmo padrão dos outros sistemas do grupo. #}
     <header class="topo">
         <div class="topo-interno">
             <a class="marca" href="{{ url_for('despesas.listar') }}" aria-label="Início">

@@ -42,7 +42,7 @@ def main() -> int:
     sys.path.insert(0, str(RAIZ))
     # Importa o conftest ANTES de tudo: ele desvia o DB_PATH do banco real.
     import tests.conftest  # noqa: F401
-    from app.db import abrir_somente_leitura
+    from financeiro.db import abrir_somente_leitura
     from tests.golden import fotografia
 
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
