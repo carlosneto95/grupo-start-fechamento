@@ -9,7 +9,7 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 4.2 — Fechamento de competência · 24/09/2026 · aguardando validação
+## Fase 4.2 — Fechamento de competência · 24/09/2026 · validada pelo Neto e mesclada (PR #10)
 
 ### Decisões do Neto (antes de construir)
 1. Mês fechado: o Dashboard mostra o **número vivo + alerta** quando o atual difere do
