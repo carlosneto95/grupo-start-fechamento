@@ -131,3 +131,17 @@ def test_filtro_do_log_mascara_traceback(tmp_path):
 
 def test_chave_de_teste_tem_tamanho_minimo():
     assert len(CHAVE_TESTE) >= configuracao.TAMANHO_MINIMO_CHAVE
+
+
+def test_nenhum_arquivo_python_gera_syntaxwarning():
+    # Uma barra invertida numa docstring (".venv\Scripts") vira SyntaxWarning a
+    # cada execução — apareceu no log da primeira tarefa diária no servidor.
+    import warnings
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent
+    for pasta in ("financeiro", "scripts", "deploy", "tests"):
+        for arquivo in (raiz / pasta).rglob("*.py"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", SyntaxWarning)
+                compile(arquivo.read_text(encoding="utf-8"), str(arquivo), "exec")

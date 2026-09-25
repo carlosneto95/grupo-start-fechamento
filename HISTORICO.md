@@ -9,10 +9,29 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 5 — Preparação do deploy (/financeiro) · 25/09/2026 · aguardando validação
+## Fase 5 — Deploy em /financeiro · 25/09/2026 · no ar (PR #14)
 
-Tudo pronto e ensaiado no computador; a execução no servidor é do Neto (console do
-PythonAnywhere), pelo passo a passo privado em `relatorios/deploy_passo_a_passo.md`.
+### Execução (25/09/2026, pela API do PythonAnywhere, com autorização do Neto)
+- Corte às 11:56 (Brasília): 30.505 contas, 1.203 notas, 448 notas ajustadas à mão.
+  Desde então o **servidor é a fonte da verdade**.
+- Comandos rodados como tarefas agendadas de uso único (saída em log lido pela API,
+  tarefa apagada em seguida); tokens copiados para o `.env` do servidor sem exibição.
+- `instalar.sh`: nenhuma biblioteca instalada (todas já existiam, nas mesmas versões do
+  computador); `pip check` igual antes e depois.
+- `carregar-banco.sh`: carga conferida antes e depois das migrações; **347 testes
+  passaram no servidor, golden incluído**. Zip de carga apagado dos dois lados.
+- `anexar-wsgi.sh`: os outros sistemas responderam igual antes e depois; `/financeiro`
+  no ar, com CSP, HSTS, cookie próprio e HTTP → HTTPS.
+- **Primeira sincronização no servidor: 25 min** (três empresas, contas e notas, todas
+  ok; ~11 s de CPU — o resto é espera da API do Tiny). Cabe numa tarefa só.
+- Tarefa diária criada às 07:00 UTC. O log dela mostrou um `SyntaxWarning` (barra
+  invertida numa docstring): corrigido, com teste que varre todos os arquivos.
+
+### Pendente com o Neto
+- Conferir, logado, a exportação de Excel do outro sistema que usava o nome `app`
+  (o ponto onde a colisão apareceria; coberto por teste simulado).
+
+### Preparação
 
 ### O que foi feito
 - **Pacote Python renomeado de `app` para `financeiro`.** Outro sistema do mesmo processo
