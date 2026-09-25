@@ -9,7 +9,47 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 4.4 — Exportação para Excel · 25/09/2026 · aguardando validação
+## Fase 4.5 — Alertas de anomalia · 25/09/2026 · aguardando validação
+
+### O que foi feito
+- **Migração 6**: `parametros_alerta` (limites, editados pelo Admin, com auditoria) e
+  `alertas_dispensados` (revisão com motivo).
+- `app/alertas.py`, três regras sobre despesas consideradas e dentro da visão, no escopo:
+  1. **Possível duplicidade**: mesma empresa, fornecedor, valor e histórico, com
+     vencimentos a até N dias. Lançamentos encadeados viram UM alerta; o valor é o que se
+     pagaria a mais.
+  2. **Fornecedor novo**: primeiro lançamento (em todo o histórico, inclusive antes de
+     2026) há até N dias, com total considerado acima do piso.
+  3. **Categoria fora do padrão**: mês contra a média dos 3 anteriores, por empresa,
+     com variação mínima em % E em reais; só meses completos.
+- **Tela Alertas** (a partir de Pendências): tabela filtrável e ordenável pelo cabeçalho,
+  exportável, valor com link para as contas em Despesas; "Dispensar" com motivo e
+  "Reativar", ambos auditados. Cartão novo na tela de Pendências.
+- **Configurações → Limites dos alertas** (Admin): faixa validada; janela de duplicidade
+  com teto de 20 dias.
+- Testes: 340 (17 novos). Golden idêntico.
+
+### Calibração (banco real, 25/09/2026, numa cópia)
+- A regra do prompt ("mesmo fornecedor, valor e vencimento próximo") dava **mais de mil
+  pares** com vencimento idêntico: históricos diferentes (placas de veículo, ordens de
+  compra), todos legítimos. Exigindo histórico igual: 9 alertas. A exigência é um
+  parâmetro que o Admin pode desligar.
+- Com janela de 31 dias ou mais a duplicidade pega a conta mensal (mais de 2 mil pares):
+  daí o teto de 20 dias.
+- Padrões: duplicidade 7 dias; fornecedor novo 30 dias e R$ 5 mil (15 alertas; 60 dias
+  davam o dobro); categoria 50% e R$ 20 mil (23 alertas de 04 a 08/2026). Total: 47,
+  calculados em ~0,4 s.
+
+### Decisões
+1. Alertas não entram no golden: dependem da data de hoje e de limites editáveis.
+2. O mês seguinte a um pico também alerta (a média ficou inflada): é coerente com
+   "fora do padrão" e mostra a volta ao normal.
+3. Sem item novo no menu (a barra já está no limite em 1366 px): a entrada é pelo cartão
+   em Pendências.
+
+---
+
+## Fase 4.4 — Exportação para Excel · 25/09/2026 · validada pelo Neto e mesclada (PR #12)
 
 ### O que foi feito
 - `?formato=xlsx` em toda listagem: Despesas, Vendas, Serviços, DRE, detalhe da DRE,

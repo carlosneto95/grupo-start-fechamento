@@ -282,7 +282,8 @@ def tirar(caminho_db: Path, ate: str | None = None, progresso=print) -> dict:
             # Diferenças pós-fechamento (Fase 4.2) dependem de um fechamento
             # existir: não são número do fechamento, e têm testes próprios.
             # O detalhe da DRE (Fase 4.3) só existe com período+componente na URL.
-            if tabela in ("usuarios", "diferencas", "dre_linhas"):
+            # Alertas (Fase 4.5) dependem da data de hoje e de limites editáveis.
+            if tabela in ("usuarios", "diferencas", "dre_linhas", "alertas"):
                 continue
             for coluna in colunas:
                 for empresa in (None, "MSV"):

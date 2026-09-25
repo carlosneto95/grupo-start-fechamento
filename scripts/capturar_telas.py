@@ -52,6 +52,8 @@ TELAS = [
         "/dre/linhas?periodo=07/2026&componente=despesa&bloco=servicos",
         "table tbody tr",
     ),
+    ("12_alertas", "/alertas", "table tbody tr"),
+    ("13_limites_alertas", "/configuracoes/alertas", None),
 ]
 
 # Conta linhas INTEIRAMENTE visíveis na janela, sem rolar.

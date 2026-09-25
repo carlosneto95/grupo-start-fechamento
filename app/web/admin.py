@@ -6,8 +6,9 @@ import string
 
 from flask import Blueprint, abort, g, redirect, render_template, request, url_for
 
-from app import exportar, paineis, usuarios, validacao
+from app import alertas, exportar, paineis, usuarios, validacao
 from app.config.companies import load_companies
+from app.dinheiro import para_centavos
 from app.escopo import PERFIS
 from app.repositorio_contas_pagar import (
     definir_regras_exclusao,
@@ -56,6 +57,50 @@ def exclusoes():
         categorias_excluidas=set(regras.get("categoria_primaria", [])),
         subcategorias_excluidas=set(regras.get("subcategoria", [])),
     )
+
+
+# ---- limites dos alertas (Fase 4.5) ------------------------------------------------
+
+
+def _ler_limites(form) -> dict[str, int]:
+    """Formulário -> valores inteiros da tabela. Reais viram centavos; sim/não
+    é caixa de seleção (ausente = 0). Texto ilegível -> ValueError."""
+    novos = {}
+    for p in alertas.PARAMETROS:
+        bruto = (form.get(p.chave) or "").strip()
+        if p.unidade == "sim/não":
+            novos[p.chave] = 1 if bruto else 0
+        elif p.unidade == "reais":
+            # Formato brasileiro: ponto é milhar, vírgula é decimal ("5.000,00").
+            centavos = para_centavos(bruto.replace(".", "").replace(",", "."))
+            if centavos is None:
+                raise ValueError(f"{p.rotulo}: valor inválido")
+            novos[p.chave] = centavos
+        else:
+            if not bruto.isdigit():
+                raise ValueError(f"{p.rotulo}: use um número inteiro")
+            novos[p.chave] = int(bruto)
+    return novos
+
+
+@bp.route("/configuracoes/alertas", methods=["GET", "POST"])
+@admin_necessario
+def limites_alertas():
+    erro, status = None, 200
+    if request.method == "POST":
+        try:
+            alertas.definir_parametros(g.escopo, _ler_limites(request.form))
+            return redirect(url_for("admin.limites_alertas", salvo=1))
+        except ValueError as e:
+            erro, status = str(e), 400
+    return render_template(
+        "configuracoes_alertas.html",
+        secao="config",
+        parametros=alertas.PARAMETROS,
+        valores=alertas.parametros(),
+        erro=erro,
+        salvo=request.args.get("salvo") == "1",
+    ), status
 
 
 # ---- usuários ----------------------------------------------------------------------

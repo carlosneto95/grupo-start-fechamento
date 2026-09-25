@@ -327,3 +327,16 @@ def colunas_dre(meses: list[str]) -> list[tuple]:
         ("Var. a/a %", lambda l: None if l["var_aa_pct"] is None else l["var_aa_pct"], "pct"),
     ]
     return cols
+
+
+COLUNAS_ALERTAS = [
+    ("Situação", "situacao", "texto"),
+    ("Tipo", "tipo_rotulo", "texto"),
+    ("Empresa", "empresa", "texto"),
+    ("Fornecedor / categoria", "descricao", "texto"),
+    ("Competência", "competencia", "competencia"),
+    ("Valor", "valor", "moeda"),
+    ("Detalhe", "detalhe", "texto"),
+    ("Dispensado por", "dispensado_por", "texto"),
+    ("Motivo", "motivo", "texto"),
+]

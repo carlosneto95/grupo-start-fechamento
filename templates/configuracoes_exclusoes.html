@@ -5,6 +5,10 @@
 {% block cabecalho %}Categorias sempre desconsideradas{% endblock %}
 
 {% block corpo %}
+    <p class="abas-config">
+        <strong>Categorias desconsideradas</strong> ·
+        <a href="{{ url_for('admin.limites_alertas') }}">Limites dos alertas</a>
+    </p>
     <p>
         Marque as categorias/subcategorias que devem ser <strong>sempre</strong> excluídas do
         total (ex: aportes entre empresas, movimentações que não são despesa real).

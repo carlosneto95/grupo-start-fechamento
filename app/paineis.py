@@ -380,6 +380,30 @@ def diferencas_tabela(escopo, args) -> dict:
 
 
 # --------------------------------------------------------------------------
+# Alertas de anomalia
+# --------------------------------------------------------------------------
+
+
+def alertas(escopo, args) -> dict:
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS["alertas"])
+    ordenar = args.get("ordenar") or ""
+    if ordenar not in consulta.TIPOS_ORDENACAO_ALERTAS:
+        ordenar = ""  # ordem do cálculo (ativos primeiro)
+    direcao = "asc" if args.get("direcao") == "asc" else "desc"
+    linhas = consulta.alertas_listagem(escopo, filtros_coluna, ordenar or None, direcao)
+    ativos = [a for a in linhas if a["situacao"] == "ativo"]
+    return {
+        "linhas": linhas,
+        "ativos": len(ativos),
+        "valor_ativo": sum((a["valor"] for a in ativos), ZERO),
+        "filtros_coluna": filtros_coluna,
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "args_atuais": args.to_dict(flat=False),
+    }
+
+
+# --------------------------------------------------------------------------
 # DRE -> drill-down
 # --------------------------------------------------------------------------
 

@@ -17,6 +17,30 @@
     ver as linhas já filtradas.
 </p>
 <div class="grade-pendencias">
+    {# Alertas de anomalia (Fase 4.5): não são sujeira de cadastro, são
+       lançamentos que pedem revisão — por isso levam à própria tela. #}
+    {% set total_anomalias = anomalias.values()|sum %}
+    <section class="cartao pendencia {{ 'pendencia-aberta' if total_anomalias else 'pendencia-ok' }}">
+        <h2>Alertas de anomalia</h2>
+        {% if total_anomalias %}
+        <p class="pendencia-total">
+            <a href="{{ url_for('pendencias.alertas_lista', situacao='ativo') }}"><strong class="num">{{ total_anomalias }}</strong></a>
+            <span class="suave">ativos</span>
+        </p>
+        <ul class="pendencia-empresas pendencia-tipos">
+            {% for tipo, rotulo in tipos_alerta.items() %}
+            <li>
+                <a href="{{ url_for('pendencias.alertas_lista', situacao='ativo', tipo_rotulo=rotulo) }}">{{ rotulo }}</a>
+                <span class="num">{{ anomalias[tipo] }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="pendencia-total"><span class="etiqueta ok">nenhum</span></p>
+        {% endif %}
+        <p class="legenda">Duplicidade provável, fornecedor novo com valor relevante e categoria fora da média de 3 meses.</p>
+        <p class="legenda"><strong>O que fazer:</strong> revisar; se for legítimo, dispensar com o motivo.</p>
+    </section>
     {% for p in itens %}
     <section class="cartao pendencia {{ 'pendencia-aberta' if p.quantidade else 'pendencia-ok' }}">
         <h2>{{ p.titulo }}</h2>
