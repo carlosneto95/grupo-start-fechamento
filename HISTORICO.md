@@ -9,6 +9,43 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Fase 4.3 — DRE gerencial por competência · 24/09/2026 · aguardando validação
+
+### O que foi feito
+- **Tela DRE** (menu, todos os perfis, dentro do escopo): colunas mensais do ano, até o
+  último mês com receita; Acumulado; Var. m/m (R$ e %); Var. a/a. Linhas: Receita,
+  Impostos calculados, Despesa direta, Adm I, Adm II e Resultado, cada uma aberta por
+  centro de custo (Vendas, Serviços, Sem classificação), mais a margem.
+- **Mesmo cálculo do Dashboard**: cada coluna é o `separar()` daquele mês (teste compara
+  coluna a coluna com o Dashboard do mês). Uma leitura de contas e uma de notas para o
+  ano todo, separadas por mês em memória: ~160 ms com o dado real.
+- **Drill-down**: todo número é link. Receita, despesa, Adm I e Adm II levam à tela de
+  detalhe com as linhas consideradas que compõem o número — total do detalhe igual à
+  célula (testado e conferido com o dado real: nenhuma divergência em todas as células).
+  O imposto leva à receita que o gera; o resultado leva ao Dashboard do período. O
+  detalhe é ordenável e filtrável pelo cabeçalho, como toda tabela.
+- **Mês de referência** ("Até"): corta as colunas num mês e move as variações para ele.
+- Filtro de empresa (lista branca contra o escopo) e ano.
+- Testes: 302 (16 novos). Golden idêntico.
+
+### Decisões
+1. **Acumulado = soma das colunas**, não um `separar()` do ano: o rateio anual dividiria o
+   Adm de outro jeito e o acumulado deixaria de bater com as colunas na tela.
+2. **Var. a/a mostra "—" em 2026**: o ano anterior está abaixo do `ANO_MINIMO`. Passa a
+   funcionar sozinha em 2027.
+3. A DRE é demonstrativo: ordem contábil fixa, sem filtro de cabeçalho (mesma exceção do
+   Dashboard). O detalhe segue a regra geral.
+4. O acumulado aponta para a **lista de meses da tela**, não para o ano: o Tiny já tem
+   parcelas lançadas em meses futuros, e o link "ano inteiro" somava mais que a célula
+   (pego na captura com dado real; teste de regressão).
+5. Menu: "Análise Receitas" virou "Análise" para caber o item DRE em 1366 px.
+
+### Pendências
+- O último mês com receita costuma estar em andamento: o padrão das variações é ele. Se o
+  Neto preferir, o padrão pode passar a ser o último mês **fechado** (Fase 4.2).
+
+---
+
 ## Fase 4.2 — Fechamento de competência · 24/09/2026 · validada pelo Neto e mesclada (PR #10)
 
 ### Decisões do Neto (antes de construir)

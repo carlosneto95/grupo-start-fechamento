@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import date
 
 from app import consulta, fechamento
+from app.dinheiro import ZERO
 from app.analise_receitas import grades
 from app.centros_de_custo import separar as separar_centros_de_custo
 from app.filtros_coluna import COLUNAS as COLUNAS_FILTRAVEIS
@@ -372,6 +373,31 @@ def diferencas_tabela(escopo, args) -> dict:
     return {
         "linhas": consulta.diferencas_listagem(escopo, filtros_coluna, ordenar, direcao),
         "filtros_coluna": {c: v for c, v in filtros_coluna.items() if c != "competencia"},
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "args_atuais": args.to_dict(flat=False),
+    }
+
+
+# --------------------------------------------------------------------------
+# DRE -> drill-down
+# --------------------------------------------------------------------------
+
+
+def dre_linhas(escopo, args) -> dict:
+    filtros_coluna = _filtros_da_url(args, COLUNAS_FILTRAVEIS["dre_linhas"])
+    ordenar = args.get("ordenar") or "valor"
+    if ordenar not in consulta.TIPOS_ORDENACAO_DRE:
+        ordenar = "valor"
+    direcao = "asc" if args.get("direcao") == "asc" else "desc"
+    linhas = consulta.dre_linhas_listagem(escopo, filtros_coluna, ordenar, direcao)
+    return {
+        "linhas": linhas,
+        "total": sum((l["valor"] for l in linhas), ZERO),
+        # Os três parâmetros de contexto não são funis: não aparecem como filtro.
+        "filtros_coluna": {
+            c: v for c, v in filtros_coluna.items() if c not in ("periodo", "componente", "bloco")
+        },
         "ordenar": ordenar,
         "direcao": direcao,
         "args_atuais": args.to_dict(flat=False),

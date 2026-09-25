@@ -78,6 +78,18 @@ COLUNAS["diferencas"] = {
     "categoria": None,
 }
 
+# Drill-down da DRE (Fase 4.3). periodo/componente/bloco dizem QUAL número da
+# DRE está sendo detalhado (vão escondidos na URL); os demais são funis.
+COLUNAS["dre_linhas"] = {
+    "periodo": None,
+    "componente": None,
+    "bloco": None,
+    "empresa": None,
+    "tipo": None,
+    "descricao": None,
+    "categoria": None,
+}
+
 # Tela de Admin -> Usuários (Fase 2). Só Admin chega à lista: o painel e a API
 # recusam a tabela para outro perfil.
 COLUNAS["usuarios"] = {
