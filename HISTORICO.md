@@ -9,6 +9,47 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Fase 4.2 — Fechamento de competência · 24/09/2026 · validada pelo Neto e mesclada (PR #10)
+
+### Decisões do Neto (antes de construir)
+1. Mês fechado: o Dashboard mostra o **número vivo + alerta** quando o atual difere do
+   fechado (não o número congelado).
+2. Ajustes manuais do mês fechado (Considerar/Desconsiderar, competência e categoria de
+   nota) ficam **travados** até um Admin reabrir.
+
+### O que foi feito
+- **Migração 5** (`fechamentos`, `fechamento_linhas`): fechar grava a foto de cada conta e
+  nota da competência, de todas as empresas (valor, considerada, categoria). A foto é
+  imutável (triggers); no fechamento, só a reabertura pode ser gravada, uma vez, com
+  motivo. No máximo um fechamento vigente por competência; o histórico guarda todos.
+- **Tela Fechamento** (menu; todos os perfis veem, só Admin fecha e reabre): um cartão por
+  mês de 01/2026 até o corrente, com o estado e, se fechado, quantas linhas mudaram e o
+  efeito em receita e despesa. Fechar pede confirmação no próprio formulário.
+- **Tela de diferenças**: resultado no fechamento × agora (recalculado da foto pelo mesmo
+  `separar()` do Dashboard, dentro do escopo de quem olha) e a tabela das linhas que
+  mudaram — entrou no mês, saiu do mês (e para onde foi), alterada (valor, considerar,
+  categoria) — com antes, agora e efeito; ordenável e filtrável pelo cabeçalho. A cor
+  segue o efeito no resultado (custo que sobe é vermelho).
+- **Dashboard**: faixa de alerta para cada mês fechado do recorte que difere do atual.
+- **Trava** (`app/trava_fechamento.py`): marcar ou ajustar linha de mês fechado responde
+  409 "competência fechada"; mover nota PARA um mês fechado também. A sincronização não é
+  travada (espelho do Tiny): vira diferença. Mudança de regra de exclusão também aparece.
+- **Auditoria**: fechar e reabrir (com o motivo).
+- **Desempenho**: as três listas de opções do Dashboard viraram uma varredura só (mesmas
+  listas, conferido). Dashboard: ~250 ms sem mês fechado (antes 330–430 ms) e ~300 ms com
+  os oito meses de 2026 fechados e o alerta ativo.
+- Testes: 287 (20 novos: foto, diferenças, alerta, trava, reabertura, escopo,
+  imutabilidade). Golden idêntico.
+
+### Decisões
+1. Fechamento é do grupo (todas as empresas); a visão das diferenças respeita o escopo.
+2. Pode-se fechar até o mês corrente; o Admin decide quando (o sistema não impede fechar
+   com pendência — a tela Pendências mostra o que falta).
+3. Menu: "Receitas Vendas" e "Receitas Serviços" viraram "Vendas" e "Serviços" para caber
+   o item Fechamento em 1366 px (os títulos das telas continuam completos).
+
+---
+
 ## Fase 4.1 — Painel de pendências de dados · 24/09/2026 · validada pelo Neto e mesclada (PR #9)
 
 ### O que foi feito

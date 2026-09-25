@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app import auditoria
+from app.trava_fechamento import exigir_aberta
 from app.escopo import clausula, exigir_admin, exigir_escrita
 from app.db import get_conn
 from app.dinheiro import para_centavos, para_reais
@@ -129,11 +130,13 @@ def definir_manual(escopo, empresa: str, id_conta: str, considerar: bool | None)
     conn = get_conn()
     try:
         linha = conn.execute(
-            "SELECT considerar_manual FROM contas_pagar WHERE empresa=? AND id=?",
+            "SELECT considerar_manual, competencia FROM contas_pagar WHERE empresa=? AND id=?",
             (empresa, id_conta),
         ).fetchone()
         if linha is None:
             return False
+        # Mês fechado: ajuste manual travado até um Admin reabrir (Fase 4.2).
+        exigir_aberta(conn, linha["competencia"])
         conn.execute(
             "UPDATE contas_pagar SET considerar_manual=? WHERE empresa=? AND id=?",
             (valor, empresa, id_conta),
@@ -203,6 +206,30 @@ def listar_valores_distintos(escopo, coluna: str) -> list[str]:
     finally:
         conn.close()
     return [linha[0] for linha in linhas]
+
+
+def opcoes_de_filtro(escopo) -> dict[str, list[str]]:
+    """Empresa, categoria e subcategoria distintas numa varredura SÓ.
+
+    O Dashboard pedia as três listas em três consultas (listar_valores_
+    distintos), cada uma varrendo a tabela inteira — desde que o filtro de
+    visão tem o OR da competência vazia, o índice não ajuda. Uma leitura de
+    combinações distintas custa um terço (Fase 4.2)."""
+    filtro, params = clausula(escopo)
+    conn = get_conn()
+    try:
+        linhas = conn.execute(
+            "SELECT DISTINCT empresa, categoria_primaria, subcategoria FROM contas_pagar"
+            f" WHERE {FILTRO_SQL_CONTAS} AND {filtro}",
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+    opcoes = {}
+    for i, coluna in enumerate(("empresa", "categoria_primaria", "subcategoria")):
+        # Mesma ordem do ORDER BY de listar_valores_distintos (binária do SQLite).
+        opcoes[coluna] = sorted({r[i] for r in linhas if r[i] is not None})
+    return opcoes
 
 
 TIPOS_ORDENACAO = {

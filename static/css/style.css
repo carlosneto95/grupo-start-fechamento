@@ -1385,3 +1385,30 @@ a.botao-principal { text-decoration: none; display: inline-block; color: #fff; }
     .navegacao a { padding: 5px 7px; gap: 5px; }
     .topo-interno { gap: var(--esp-4); }
 }
+
+/* ---------- Fase 4.2: fechamento de competência ---------- */
+
+.grade-meses { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--esp-4); }
+.cartao.mes { padding: var(--esp-4) var(--esp-5); gap: var(--esp-2); }
+.mes-topo { display: flex; align-items: center; justify-content: space-between; }
+.mes-competencia { font-size: 16px; }
+.mes-fechado::before { background: var(--receita); }
+.mes-divergente::before { background: var(--amarelo); }
+.mes-alerta { margin: 0; font-size: 11px; color: var(--amarelo); }
+.mes .legenda { margin: 0; }
+.form-fechar { display: flex; gap: var(--esp-3); align-items: center; }
+.form-fechar button { padding: 3px 10px; }
+
+/* Faixa de alerta do Dashboard: mês fechado cujo dado mudou depois. */
+.aviso-fechamento {
+    margin: 0 0 var(--esp-2);
+    padding: 4px var(--esp-4);
+    font-size: 11px;
+    background: var(--amarelo-fraco);
+    color: #7A4F12;
+    border: 1px solid #EBD3A5;
+    border-radius: var(--raio-m);
+}
+
+.tabela-comparacao { max-width: 560px; }
+tr.linha-total td { font-weight: 600; border-top: 1px solid var(--borda-forte); }

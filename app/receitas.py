@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app import auditoria
+from app.trava_fechamento import exigir_aberta
 from app.escopo import SISTEMA, clausula, exigir_admin, exigir_escrita
 from app.db import get_conn
 from app.dinheiro import para_centavos, para_reais
@@ -256,12 +257,20 @@ def definir_ajuste(escopo, empresa: str, tipo_nota: str, id_nota: str,
     try:
         chave = (empresa, tipo_nota, str(id_nota))
         linha = conn.execute(
-            "SELECT competencia_manual, categoria_manual FROM notas"
+            "SELECT competencia_manual, categoria_manual, competencia FROM notas"
             " WHERE empresa=? AND tipo_nota=? AND id=?",
             chave,
         ).fetchone()
         if linha is None:
             return False
+        # Mês fechado (Fase 4.2): trava a competência ATUAL da nota e também a de
+        # DESTINO — mover uma nota para dentro de um mês fechado muda um
+        # resultado já apresentado tanto quanto tirá-la de lá.
+        exigir_aberta(
+            conn,
+            linha["competencia_manual"] or linha["competencia"],
+            campos.get("competencia_manual"),
+        )
         # Os nomes de coluna vêm do dicionário acima, escrito no código — nunca
         # da requisição. Por isso a f-string aqui é segura.
         atribuicoes = ", ".join(f"{c} = ?" for c in campos)
@@ -290,11 +299,13 @@ def definir_marcacao(escopo, empresa: str, tipo_nota: str, id_nota: str,
     try:
         chave = (empresa, tipo_nota, str(id_nota))
         linha = conn.execute(
-            "SELECT considerar_manual FROM notas WHERE empresa=? AND tipo_nota=? AND id=?",
+            "SELECT considerar_manual, COALESCE(competencia_manual, competencia) AS comp"
+            " FROM notas WHERE empresa=? AND tipo_nota=? AND id=?",
             chave,
         ).fetchone()
         if linha is None:
             return False
+        exigir_aberta(conn, linha["comp"])  # mês fechado: travado (Fase 4.2)
         conn.execute(
             "UPDATE notas SET considerar_manual=? WHERE empresa=? AND tipo_nota=? AND id=?",
             (valor, *chave),

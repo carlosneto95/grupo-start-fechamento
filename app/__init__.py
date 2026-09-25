@@ -81,6 +81,10 @@ def _registrar_filtros(app: Flask) -> None:
     from app.visao import formatar_valor
 
     app.jinja_env.filters["moeda"] = formatar_valor
+    # Diferença com sinal explícito (+1.234,50 / -80,00): efeito pós-fechamento.
+    app.jinja_env.filters["moeda_sinal"] = lambda v: (
+        ("+" if (v or 0) > 0 else "") + formatar_valor(v)
+    )
 
 
 def _registrar_erros(app: Flask) -> None:

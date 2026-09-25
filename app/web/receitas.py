@@ -7,6 +7,7 @@ from flask import Blueprint, g, jsonify, redirect, render_template, request, url
 from app import paineis, validacao
 from app.receitas import definir_ajuste, definir_marcacao
 from app.seguranca import escrita_necessaria
+from app.trava_fechamento import CompetenciaFechada
 
 bp = Blueprint("receitas", __name__)
 
@@ -69,6 +70,8 @@ def ajustar():
     except sqlite3.IntegrityError:
         # Segunda barreira: o CHECK do banco recusou. Nada foi gravado.
         return jsonify({"ok": False, "erro": "valor inválido"}), 400
+    except CompetenciaFechada as e:
+        return jsonify({"ok": False, "erro": str(e)}), 409
     if not existe:
         return jsonify({"ok": False, "erro": "nota não encontrada"}), 404
     return jsonify({"ok": True})
@@ -85,6 +88,10 @@ def marcar():
         considerar = validacao.booleano_ou_nulo(d.get("considerar"))
     except validacao.ErroValidacao as e:
         return jsonify({"ok": False, "erro": str(e)}), 400
-    if not definir_marcacao(g.escopo, empresa, tipo, id_nota, considerar):
+    try:
+        existe = definir_marcacao(g.escopo, empresa, tipo, id_nota, considerar)
+    except CompetenciaFechada as e:
+        return jsonify({"ok": False, "erro": str(e)}), 409
+    if not existe:
         return jsonify({"ok": False, "erro": "nota não encontrada"}), 404
     return jsonify({"ok": True})

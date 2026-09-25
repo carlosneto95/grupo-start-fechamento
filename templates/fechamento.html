@@ -1,0 +1,53 @@
+{% extends "_base.html" %}
+{% block titulo %}Fechamento — Grupo Start{% endblock %}
+{% block cabecalho %}Fechamento de competência{% endblock %}
+{% block corpo %}
+{# Fechar grava uma foto do mês. Depois, o Dashboard segue vivo mas avisa se o
+   Tiny mudou algo; os ajustes manuais do mês ficam travados até um Admin
+   reabrir (com motivo, na auditoria). #}
+<p class="legenda">
+    Fechar grava uma foto das contas e notas do mês. Se o Tiny mudar algo depois, o Dashboard
+    avisa e a tela de diferenças mostra cada linha. Ajustes manuais do mês fechado ficam
+    travados até um Admin reabrir.
+</p>
+{% if erro %}<p class="aviso">{{ erro }}</p>{% endif %}
+
+<div class="grade-meses">
+    {% for m in meses %}
+    {% set f = m.fechamento %}
+    <section class="cartao mes {{ 'mes-fechado' if f else 'mes-aberto' }} {{ 'mes-divergente' if m.alerta and m.alerta.diferencas }}">
+        <div class="mes-topo">
+            <strong class="num mes-competencia">{{ m.competencia }}</strong>
+            {% if f %}
+            <span class="etiqueta ok">fechado</span>
+            {% else %}
+            <span class="etiqueta">aberto</span>
+            {% endif %}
+        </div>
+        {% if f %}
+        <p class="legenda">em {{ f.fechado_em[:16]|replace("T", " ") }} por {{ f.fechado_por }}</p>
+        {% if m.alerta and m.alerta.diferencas %}
+        <p class="mes-alerta">
+            <a href="{{ url_for('fechamento.diferencas', competencia=m.competencia) }}">
+                {{ m.alerta.diferencas }} diferença(s) depois do fechamento
+            </a><br>
+            {% if m.alerta.efeito_receita %}<span class="num">receita {{ m.alerta.efeito_receita|moeda_sinal }}</span>{% endif %}
+            {% if m.alerta.efeito_receita and m.alerta.efeito_despesa %} · {% endif %}
+            {% if m.alerta.efeito_despesa %}<span class="num">despesa {{ m.alerta.efeito_despesa|moeda_sinal }}</span>{% endif %}
+        </p>
+        {% else %}
+        <p class="legenda"><a href="{{ url_for('fechamento.diferencas', competencia=m.competencia) }}">sem diferenças — ver o fechamento</a></p>
+        {% endif %}
+        {% elif eh_admin %}
+        {# Confirmação no próprio formulário: nada de confirm() do navegador. #}
+        <form method="post" action="{{ url_for('fechamento.fechar') }}" class="form-fechar">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="competencia" value="{{ m.competencia }}">
+            <label class="opcao-checkbox"><input type="checkbox" name="confirmo" value="1" required> confirmo</label>
+            <button type="submit">Fechar {{ m.competencia }}</button>
+        </form>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}
