@@ -1441,3 +1441,19 @@ tr.linha-total td { font-weight: 600; border-top: 1px solid var(--borda-forte); 
 }
 .botao-exportar:hover { border-color: var(--acento); color: var(--acento); }
 .botao-exportar .ico { width: 14px; height: 14px; }
+
+/* ---------- Fase 4.5: alertas de anomalia ---------- */
+tr.linha-dispensada { color: var(--tinta-fraca); }
+td.detalhe-alerta { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+td.revisao-alerta { white-space: nowrap; }
+td.revisao-alerta details { display: inline-block; }
+td.revisao-alerta summary { cursor: pointer; color: var(--acento); font-weight: 600; font-size: 11px; }
+td.revisao-alerta details[open] input { width: 220px; }
+.botao-link { background: none; border: 0; padding: 0; color: var(--acento); cursor: pointer; font-size: 11px; }
+.abas-config { font-size: 12px; margin: 0 0 var(--esp-3); }
+.form-limites { display: grid; gap: var(--esp-2); max-width: 900px; }
+.linha-limite { display: grid; grid-template-columns: 300px 180px 1fr; align-items: center; gap: var(--esp-3); }
+.linha-limite .legenda { margin: 0; }
+.form-limites input[type=number] { width: 90px; }
+.pendencia-empresas.pendencia-tipos li { grid-template-columns: 1fr 40px; }
+.form-limites button { justify-self: start; }

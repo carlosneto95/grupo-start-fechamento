@@ -1,0 +1,32 @@
+{% extends "_base.html" %}
+{% block titulo %}Limites dos alertas — Grupo Start{% endblock %}
+{% block cabecalho %}Limites dos alertas de anomalia{% endblock %}
+{% block corpo %}
+{# Os limites ficam na tabela parametros_alerta (migração 6), nunca no código.
+   Cada mudança vai para a auditoria com o valor anterior. #}
+<p class="abas-config">
+    <a href="{{ url_for('admin.exclusoes') }}">Categorias desconsideradas</a> ·
+    <strong>Limites dos alertas</strong>
+</p>
+{% if erro %}<p class="aviso">{{ erro }}</p>{% endif %}
+{% if salvo %}<p class="legenda"><span class="etiqueta ok">salvo</span> Os alertas já usam os novos limites.</p>{% endif %}
+<form method="post" class="form-limites">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for p in parametros %}
+    {% set v = valores.get(p.chave, 0) %}
+    <label class="linha-limite">
+        <span class="rotulo-limite">{{ p.rotulo }}</span>
+        {% if p.unidade == "sim/não" %}
+        <input type="checkbox" name="{{ p.chave }}" value="1" {{ "checked" if v }}>
+        {% elif p.unidade == "reais" %}
+        <span>R$ <input type="text" inputmode="decimal" name="{{ p.chave }}" value="{{ (v / 100)|moeda }}" size="12" required></span>
+        {% else %}
+        <span><input type="number" name="{{ p.chave }}" value="{{ v }}" min="{{ p.minimo }}" max="{{ p.maximo }}" required> {{ p.unidade }}</span>
+        {% endif %}
+        <span class="legenda">{{ p.ajuda }}</span>
+    </label>
+    {% endfor %}
+    <button type="submit">Salvar</button>
+    <a href="{{ url_for('pendencias.alertas_lista') }}">Ver alertas</a>
+</form>
+{% endblock %}

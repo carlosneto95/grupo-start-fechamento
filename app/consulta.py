@@ -203,7 +203,42 @@ def dre_linhas_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="des
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_DRE, "valor")
 
 
+TIPOS_ORDENACAO_ALERTAS = {
+    "situacao": "texto",
+    "tipo_rotulo": "texto",
+    "empresa": "texto",
+    "descricao": "texto",
+    "competencia": "competencia",
+    "valor": "numero",
+}
+
+
+def alertas_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True):
+    """Alertas de anomalia com os funis de cabeçalho. Sem ordenação pedida,
+    vale a ordem do cálculo: ativos primeiro, por tipo, maior valor antes."""
+    from app import alertas
+    from app.ordenacao import ordenar_linhas
+    from app.visao import SEM_VALOR, casa_data
+
+    linhas = alertas.calcular(escopo)
+    for coluna, marcados in filtros_coluna.items():
+        if not marcados or coluna not in TIPOS_ORDENACAO_ALERTAS:
+            continue
+        aceitos = set(marcados)
+        if coluna == "competencia":
+            # Árvore Ano > Mês: a seleção chega colapsada ("2026", "08/2026").
+            linhas = [a for a in linhas if casa_data(a["competencia"], aceitos)]
+        else:
+            linhas = [
+                a for a in linhas if (str(a.get(coluna) or "").strip() or SEM_VALOR) in aceitos
+            ]
+    if not ordenado or not ordenar:
+        return linhas
+    return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_ALERTAS, "valor")
+
+
 LISTAGEM = {
+    "alertas": alertas_listagem,
     "dre_linhas": dre_linhas_listagem,
     "diferencas": diferencas_listagem,
     "usuarios": usuarios_listagem,

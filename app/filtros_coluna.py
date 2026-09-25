@@ -100,6 +100,16 @@ COLUNAS["usuarios"] = {
     "situacao": None,
 }
 
+# Alertas de anomalia (Fase 4.5). Lista calculada, não tabela do banco:
+# filtro e ordem em Python (app/consulta.py:alertas_listagem).
+COLUNAS["alertas"] = {
+    "situacao": None,
+    "tipo_rotulo": None,
+    "empresa": None,
+    "descricao": None,
+    "competencia": None,
+}
+
 # Teto de itens devolvidos. Com a busca embutida, ninguém precisa rolar mais que
 # isso — e evita despejar 1.500 checkboxes de uma vez no navegador.
 LIMITE = 400

@@ -1,0 +1,88 @@
+{% extends "_base.html" %}
+{% set exportavel = true %}
+{% import "_filtro_coluna.html" as col %}
+{% block titulo %}Alertas — Grupo Start{% endblock %}
+{% block cabecalho %}Alertas de anomalia{% endblock %}
+{% block cabecalho_acoes %}
+<div class="cartao cartao-linha {{ 'negativo' if ativos else 'positivo' }}">
+    <span class="cartao-rotulo">Ativos</span>
+    <strong class="cartao-valor">{{ ativos }}</strong>
+    <span class="cartao-nota">R$ {{ valor_ativo|moeda }}</span>
+</div>
+{% endblock %}
+{% block corpo %}
+{# Três regras sobre as despesas consideradas (app/alertas.py). O alerta aponta;
+   nada é corrigido aqui. Revisado e legítimo -> "Dispensar" com o motivo: sai
+   dos ativos, fica na lista (riscado) e na auditoria. #}
+<p class="legenda">
+    Possível duplicidade: mesma empresa, fornecedor, valor e histórico, com vencimentos
+    próximos (valor = o que se pagaria a mais). Fornecedor novo: primeiro lançamento
+    recente, com total relevante. Categoria fora do padrão: mês contra a média dos 3
+    anteriores. Clique no valor para ver as contas.
+    {% if eh_admin %}<a href="{{ url_for('admin.limites_alertas') }}">Ajustar limites</a>{% endif %}
+</p>
+{% if erro %}<p class="aviso">{{ erro }}</p>{% endif %}
+
+<form method="get" id="form-tabela">
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+    <div class="tabela-caixa">
+    <table>
+        <thead>
+            <tr>
+                {{ col.th("pendencias.alertas_lista", "alertas", "situacao", "Situação", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("pendencias.alertas_lista", "alertas", "tipo_rotulo", "Tipo", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("pendencias.alertas_lista", "alertas", "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("pendencias.alertas_lista", "alertas", "descricao", "Fornecedor / categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("pendencias.alertas_lista", "alertas", "competencia", "Competência", ordenar, direcao, args_atuais, filtros_coluna) }}
+                <th class="num"><a href="{{ url_for('pendencias.alertas_lista', **dict(args_atuais, ordenar='valor', direcao='asc' if ordenar == 'valor' and direcao == 'desc' else 'desc')) }}">Valor</a></th>
+                <th>Detalhe</th>
+                {% if pode_escrever %}<th>Revisão</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in linhas %}
+            <tr class="{{ 'linha-dispensada' if a.situacao == 'dispensado' }}">
+                <td><span class="etiqueta {{ 'fora' if a.situacao == 'ativo' else 'ok' }}">{{ a.situacao }}</span></td>
+                <td>{{ a.tipo_rotulo }}</td>
+                <td>{{ a.empresa }}</td>
+                <td class="texto-longo" title="{{ a.descricao }}">{{ a.descricao }}</td>
+                <td class="data">{{ a.competencia or "" }}</td>
+                <td class="num"><a href="{{ url_for(a.rota, **a.filtros) }}">{{ a.valor|moeda }}</a></td>
+                <td class="detalhe-alerta" title="{{ a.detalhe }}">{{ a.detalhe }}</td>
+                {% if pode_escrever %}
+                <td class="revisao-alerta">
+                    {# Os campos pertencem a formulários de POST fora da tabela
+                       (atributo form=): formulário dentro do form-tabela seria
+                       HTML inválido e o navegador o descartaria. #}
+                    {% if a.situacao == "ativo" %}
+                    <details>
+                        <summary>Dispensar</summary>
+                        <input type="text" name="motivo" form="alerta-{{ loop.index }}" required minlength="5" maxlength="300" placeholder="Motivo (ex.: duas NFs distintas)">
+                        <button type="submit" form="alerta-{{ loop.index }}">Confirmar</button>
+                    </details>
+                    {% else %}
+                    <span class="legenda" title="{{ a.motivo }}">{{ a.dispensado_por }}: {{ a.motivo }}</span>
+                    <button type="submit" class="botao-link" form="alerta-{{ loop.index }}">Reativar</button>
+                    {% endif %}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</form>
+{% if pode_escrever %}
+{% for a in linhas %}
+<form id="alerta-{{ loop.index }}" method="post" hidden
+      action="{{ url_for('pendencias.dispensar' if a.situacao == 'ativo' else 'pendencias.reativar', **args_atuais) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="chave" value="{{ a.chave }}">
+</form>
+{% endfor %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/filtro-coluna.js') }}"></script>
+{% endblock %}
