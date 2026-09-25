@@ -2,7 +2,7 @@
 
 from flask import Blueprint, g, jsonify, redirect, render_template, request, url_for
 
-from app import paineis, validacao
+from app import exportar, paineis, validacao
 from app.repositorio_contas_pagar import definir_manual
 from app.seguranca import escrita_necessaria
 from app.trava_fechamento import CompetenciaFechada
@@ -12,7 +12,20 @@ bp = Blueprint("despesas", __name__)
 
 @bp.route("/despesas")
 def listar():
-    return render_template("despesas.html", **paineis.despesas(g.escopo, request.args))
+    contexto = paineis.despesas(g.escopo, request.args)
+    if exportar.pedido(request.args):
+        # A planilha leva TODAS as linhas do recorte (contexto["contas"]), não
+        # só as 2 mil desenhadas na tela.
+        return exportar.enviar(
+            g.escopo,
+            "despesas",
+            "Despesas — contas a pagar",
+            [("Total considerado", contexto["total_considerado"], "moeda")],
+            exportar.COLUNAS_DESPESAS,
+            contexto["contas"],
+            contexto["filtros_coluna"],
+        )
+    return render_template("despesas.html", **contexto)
 
 
 @bp.route("/contas-pagar")

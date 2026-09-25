@@ -6,7 +6,7 @@ import string
 
 from flask import Blueprint, abort, g, redirect, render_template, request, url_for
 
-from app import paineis, usuarios, validacao
+from app import exportar, paineis, usuarios, validacao
 from app.config.companies import load_companies
 from app.escopo import PERFIS
 from app.repositorio_contas_pagar import (
@@ -97,9 +97,18 @@ def _ler_formulario(novo: bool) -> dict:
 @bp.route("/admin/usuarios")
 @admin_necessario
 def usuarios_lista():
-    return render_template(
-        "usuarios.html", **paineis.usuarios(g.escopo, request.args), secao="usuarios"
-    )
+    contexto = paineis.usuarios(g.escopo, request.args)
+    if exportar.pedido(request.args):
+        return exportar.enviar(
+            g.escopo,
+            "usuarios",
+            "Usuários",
+            [],
+            exportar.COLUNAS_USUARIOS,
+            contexto["usuarios"],
+            contexto["filtros_coluna"],
+        )
+    return render_template("usuarios.html", **contexto, secao="usuarios")
 
 
 @bp.route("/admin/usuarios/novo", methods=["GET", "POST"])

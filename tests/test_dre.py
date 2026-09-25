@@ -5,7 +5,10 @@ separar()), o acumulado é a soma das colunas, e todo número leva a linhas cujo
 total é o próprio número — sem isso o drill-down seria só decorativo.
 """
 
+import io
+
 import pytest
+from openpyxl import load_workbook
 from werkzeug.datastructures import MultiDict
 
 from app import dre, paineis
@@ -115,8 +118,15 @@ def test_telas_respondem_e_respeitam_escopo(banco_exemplo):
     assert r.status_code == 200
     assert "Loja D" not in r.get_data(as_text=True)  # conta da BETA
     # Empresa fora do escopo na URL é ignorada, não vaza.
+    # (A URL pedida volta no link do botão Excel; o que importa é que BETA não
+    # vira opção marcada nem entra nos números — conferido na planilha.)
     r = c.get("/dre?ano=2026&empresa=BETA")
-    assert "BETA" not in r.get_data(as_text=True)
+    assert 'value="BETA"' not in r.get_data(as_text=True)
+    assert r.get_data(as_text=True).count("checked") == 0
+    wb = load_workbook(io.BytesIO(c.get("/dre?ano=2026&empresa=BETA&formato=xlsx").data))
+    resumo = dict(wb["Resumo"].iter_rows(values_only=True))
+    assert resumo["Empresas"] == "todas do seu acesso"  # BETA descartada
+    assert "BETA" not in str(list(wb["Detalhe"].iter_rows(values_only=True)))
 
 
 def test_mes_de_referencia_corta_colunas_e_move_as_variacoes(banco_exemplo):
