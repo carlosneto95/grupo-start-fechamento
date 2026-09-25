@@ -9,6 +9,16 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Decisões do Neto sobre o restante do plano · 25/09/2026
+- **Fase 4.6 (orçado × realizado): fora do escopo.** Não há orçamento a comparar.
+- **Fase 4.7 (fluxo de caixa): fora do escopo por ora.** Registrado o custo: o sistema
+  mostra competência (lucro), não caixa (quando o dinheiro falta). Vencimento, liquidação
+  e saldo em aberto já são sincronizados, então ligar depois é barato.
+- **Fase 5: o caminho no PythonAnywhere será `/financeiro`** (`/fechamento`, `/demandas`,
+  `/adba` e `/impostos` já estão em uso).
+
+---
+
 ## Fase 4.5 — Alertas de anomalia · 25/09/2026 · aguardando validação
 
 ### O que foi feito
