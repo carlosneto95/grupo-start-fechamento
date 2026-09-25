@@ -46,6 +46,12 @@ TELAS = [
     ("07_configuracoes", "/configuracoes/exclusoes", None),
     ("08_usuarios", "/admin/usuarios", None),
     ("09_pendencias", "/pendencias", None),
+    ("10_dre", "/dre?ate=7", ".tabela-dre tbody tr"),
+    (
+        "11_dre_linhas",
+        "/dre/linhas?periodo=07/2026&componente=despesa&bloco=servicos",
+        "table tbody tr",
+    ),
 ]
 
 # Conta linhas INTEIRAMENTE visíveis na janela, sem rolar.

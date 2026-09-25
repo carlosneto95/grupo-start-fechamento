@@ -1,0 +1,59 @@
+{% extends "_base.html" %}
+{% import "_filtro_coluna.html" as col %}
+{% set nomes = {"receita": "Receita", "despesa": "Despesa direta", "adm_geral": "Adm I — ADM GERAL", "adm_propria": "Adm II"} %}
+{% set blocos = {"vendas": "Vendas", "servicos": "Serviços", "sem_classificacao": "Sem classificação"} %}
+{% block titulo %}DRE — detalhe — Grupo Start{% endblock %}
+{% block cabecalho %}{{ nomes.get(componente, "Detalhe") }}{{ " · " ~ blocos[bloco] if bloco in blocos }} · {{ periodo[0] ~ ' a ' ~ periodo[-1] if periodo|length > 1 else periodo|first }}{% endblock %}
+{% block cabecalho_acoes %}
+<div class="cartao destaque cartao-linha">
+    <span class="cartao-rotulo">Total</span>
+    <strong class="cartao-valor">R$ {{ total|moeda }}</strong>
+    <span class="cartao-nota">{{ linhas|length }} linha(s)</span>
+</div>
+{% endblock %}
+{% block corpo %}
+{# As linhas CONSIDERADAS que compõem o número clicado na DRE. O total deste
+   cartão é o mesmo da célula (teste em tests/test_dre.py). #}
+<form method="get" id="form-tabela">
+    {% for p in periodo %}<input type="hidden" name="periodo" value="{{ p }}">{% endfor %}
+    <input type="hidden" name="componente" value="{{ componente }}">
+    <input type="hidden" name="bloco" value="{{ bloco }}">
+    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+    <input type="hidden" name="direcao" value="{{ direcao }}">
+    <p class="legenda">
+        <a href="{{ url_for('dre.demonstrativo', ano=(periodo|first or '')[-4:]) }}">← voltar à DRE</a>
+        {% if componente == "receita" %} · O imposto calculado da DRE é 14% (Vendas) ou 10% (Serviços) desta receita.{% endif %}
+    </p>
+    <div class="tabela-caixa">
+    <table>
+        <thead>
+            <tr>
+                {{ col.th("dre.linhas", "dre_linhas", "empresa", "Empresa", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("dre.linhas", "dre_linhas", "tipo", "Tipo", ordenar, direcao, args_atuais, filtros_coluna) }}
+                <th>Competência</th>
+                <th>Nº / vencimento</th>
+                {{ col.th("dre.linhas", "dre_linhas", "descricao", "Cliente / fornecedor", ordenar, direcao, args_atuais, filtros_coluna) }}
+                {{ col.th("dre.linhas", "dre_linhas", "categoria", "Categoria", ordenar, direcao, args_atuais, filtros_coluna) }}
+                <th class="num"><a href="{{ url_for('dre.linhas', **dict(args_atuais, ordenar='valor', direcao='asc' if ordenar == 'valor' and direcao == 'desc' else 'desc')) }}">Valor</a></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in linhas %}
+            <tr>
+                <td>{{ l.empresa }}</td>
+                <td>{{ l.tipo }}</td>
+                <td class="data">{{ l.competencia }}</td>
+                <td class="data">{{ l.documento }}</td>
+                <td class="texto-longo" title="{{ l.descricao }}">{{ l.descricao }}</td>
+                <td class="texto-medio" title="{{ l.categoria }}">{{ l.categoria }}</td>
+                <td class="num">{{ l.valor|moeda }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/filtro-coluna.js') }}"></script>
+{% endblock %}

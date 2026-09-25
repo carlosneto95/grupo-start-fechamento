@@ -1412,3 +1412,22 @@ a.botao-principal { text-decoration: none; display: inline-block; color: #fff; }
 
 .tabela-comparacao { max-width: 560px; }
 tr.linha-total td { font-weight: 600; border-top: 1px solid var(--borda-forte); }
+
+/* ---------- Fase 4.3: DRE gerencial ---------- */
+
+.filtros-dre { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-4); margin-bottom: var(--esp-3); }
+.filtros-dre label { display: inline-flex; align-items: center; gap: var(--esp-2); font-weight: 600; font-size: 11px; }
+.empresas-dre { display: inline-flex; gap: var(--esp-3); border: 0; margin: 0; padding: 0; align-items: center; }
+.tabela-dre td a { color: inherit; text-decoration: none; }
+.tabela-dre td a:hover { color: var(--acento); text-decoration: underline; }
+.tabela-dre tr.dre-nivel-0 > td { font-weight: 600; }
+.tabela-dre tr.dre-nivel-1 > td { color: var(--tinta-media); }
+.tabela-dre tr.dre-resultado.dre-nivel-0 > td { border-top: 1px solid var(--borda-forte); background: var(--acento-fraco); }
+.tabela-dre tr.dre-margem > td { color: var(--tinta-suave); font-style: italic; }
+.tabela-dre .col-acumulado { border-left: 1px solid var(--borda-forte); font-weight: 600; }
+.tabela-dre .col-var { color: var(--tinta-suave); }
+.tabela-dre td.recuo-nivel-1 { padding-left: 22px; }
+/* As regras de nível e de coluna acima têm especificidade maior que as
+   classes genéricas de cor: sem isto, negativo e variação ficavam cinza. */
+.tabela-dre tr > td.valor-negativo { color: var(--despesa); }
+.tabela-dre tr > td.valor-positivo { color: var(--receita); }

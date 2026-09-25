@@ -13,6 +13,7 @@ mandar o dicionário inteiro para o SQL:
                              (valor formatado, considerar/desconsiderar,
                               competência e categoria efetivas das notas)
 """
+
 from __future__ import annotations
 
 from app.receitas import listar_notas
@@ -31,7 +32,9 @@ def _marcados(filtros_coluna: dict, coluna: str) -> set | None:
     return set(filtros_coluna.get(coluna) or []) or None
 
 
-def despesas(escopo, filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True) -> list[dict]:
+def despesas(
+    escopo, filtros_coluna: dict, ordenar=None, direcao="asc", ordenado=True
+) -> list[dict]:
     filtros = {c: filtros_coluna[c] for c in SQL_DESPESAS if filtros_coluna.get(c)}
     return listar_contas(
         escopo,
@@ -46,7 +49,9 @@ def despesas(escopo, filtros_coluna: dict, ordenar=None, direcao="asc", ordenado
     )
 
 
-def receitas(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
+def receitas(
+    escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True
+) -> list[dict]:
     filtros = {c: filtros_coluna[c] for c in SQL_RECEITAS if filtros_coluna.get(c)}
     # A emissão das notas também é árvore de datas, e listar_notas a espera
     # dentro do mesmo dicionário de filtros.
@@ -71,10 +76,14 @@ def _receitas_do_tipo(tipo: str):
     O tipo é fixado AQUI e não vem da URL de propósito: é a identidade da tela,
     não um filtro que o usuário possa desmarcar. Assim a cascata dos funis, que
     passa por esta mesma função, enxerga só o universo daquela tela."""
-    def listar(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True) -> list[dict]:
+
+    def listar(
+        escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True
+    ) -> list[dict]:
         filtros = dict(filtros_coluna)
         filtros["tipo_nota"] = [tipo]
         return receitas(escopo, filtros, ordenar=ordenar, direcao=direcao, ordenado=ordenado)
+
     return listar
 
 
@@ -117,7 +126,9 @@ def usuarios_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="asc",
     for coluna, marcados in filtros_coluna.items():
         if coluna in TIPOS_ORDENACAO_USUARIOS and marcados:
             aceitos = set(marcados)
-            linhas = [u for u in linhas if (str(u.get(coluna) or "").strip() or SEM_VALOR) in aceitos]
+            linhas = [
+                u for u in linhas if (str(u.get(coluna) or "").strip() or SEM_VALOR) in aceitos
+            ]
     if not ordenado:
         return linhas
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_USUARIOS, "login")
@@ -146,13 +157,54 @@ def diferencas_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="des
     for coluna, marcados in filtros_coluna.items():
         if coluna in TIPOS_ORDENACAO_DIFERENCAS and marcados:
             aceitos = set(marcados)
-            linhas = [d for d in linhas if (str(d.get(coluna) or "").strip() or SEM_VALOR) in aceitos]
+            linhas = [
+                d for d in linhas if (str(d.get(coluna) or "").strip() or SEM_VALOR) in aceitos
+            ]
     if not ordenado:
         return linhas
     return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_DIFERENCAS, "efeito")
 
 
+TIPOS_ORDENACAO_DRE = {
+    "empresa": "texto",
+    "tipo": "texto",
+    "competencia": "competencia",
+    "descricao": "texto",
+    "categoria": "texto",
+    "valor": "numero",
+}
+
+
+def dre_linhas_listagem(escopo, filtros_coluna: dict, ordenar=None, direcao="desc", ordenado=True):
+    """As linhas que compõem um número da DRE (periodo + componente + bloco
+    vêm da URL). Parâmetro torto = lista vazia, não erro."""
+    from app import dre
+    from app.ordenacao import ordenar_linhas
+    from app.visao import SEM_VALOR
+
+    def um(coluna):
+        return (filtros_coluna.get(coluna) or [None])[0]
+
+    try:
+        linhas = dre.linhas_do_componente(
+            escopo, filtros_coluna.get("periodo") or [], um("componente"), um("bloco")
+        )
+    except ValueError:
+        linhas = []
+    for coluna in ("empresa", "tipo", "descricao", "categoria"):
+        marcados = filtros_coluna.get(coluna)
+        if marcados:
+            aceitos = set(marcados)
+            linhas = [
+                l for l in linhas if (str(l.get(coluna) or "").strip() or SEM_VALOR) in aceitos
+            ]
+    if not ordenado:
+        return linhas
+    return ordenar_linhas(linhas, ordenar, direcao, TIPOS_ORDENACAO_DRE, "valor")
+
+
 LISTAGEM = {
+    "dre_linhas": dre_linhas_listagem,
     "diferencas": diferencas_listagem,
     "usuarios": usuarios_listagem,
     "despesas": despesas,
