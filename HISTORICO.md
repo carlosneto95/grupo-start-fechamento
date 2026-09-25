@@ -9,17 +9,70 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
+## Fase 5 — Preparação do deploy (/financeiro) · 25/09/2026 · aguardando validação
+
+Tudo pronto e ensaiado no computador; a execução no servidor é do Neto (console do
+PythonAnywhere), pelo passo a passo privado em `relatorios/deploy_passo_a_passo.md`.
+
+### O que foi feito
+- **Pacote Python renomeado de `app` para `financeiro`.** Outro sistema do mesmo processo
+  WSGI tem um pacote `app` e o importa durante as requisições; com dois `app`, um deles
+  usaria o código do outro. Troca mecânica (imports, caminhos, nomes de logger); o banco
+  continua `data/app.db`. Golden idêntico.
+- `deploy/`: `bloco_wsgi_financeiro.py` (embrulha o `application` existente; só remove
+  módulos `financeiro*`), `anexar-wsgi.sh` (backup, sintaxe, e compara os outros sistemas
+  antes × depois — restaura sozinho se algum mudar), `instalar.sh` (Python 3.11+, pastas
+  700, `.env` com chave nova, só instala o que falta, `pip check` antes e depois),
+  `carregar-banco.sh` (carga única: SHA-256, contagens/somas/ajustes contra o manifesto,
+  migrações, testes; recusa se já houver banco), `testar.sh` (pytest fora do venv
+  compartilhado), `atualizar.sh` (testa a versão nova antes de trocar; banco, `.env` e
+  golden intocados), `empacotar.py` (a partir do `git ls-files`, recusa banco/planilha/.env)
+  e `empacotar_carga.py` (banco + manifesto + golden).
+- **Login sob prefixo**: a volta à página pedida perdia o `/financeiro` (mesmo defeito
+  que o Impostos achou no deploy dele). Corrigido e testado com o app montado sob prefixo.
+- **Suíte hermética**: os testes não leem mais o `.env` do projeto nem variáveis `GSF_*`.
+  No ensaio com o `.env` de servidor, 122 testes quebravam (cookie restrito a
+  `/financeiro`).
+- Tela Sincronizar do ambiente local avisa que o servidor é a fonte da verdade.
+- `DEPLOY.md` genérico (repositório público: sem conta, caminhos reais nem lista dos
+  outros sistemas). Uma menção antiga em `configuracao.py` e no histórico foi genericizada.
+- Testes: 348 (8 novos: bloco WSGI com sucesso e com falha, prefixo no login, cookie,
+  pacote sem dado sensível, fim de linha dos `.sh`).
+
+### Ensaio geral (no computador, pasta temporária no papel do servidor)
+- instalar → carregar (30.505 contas, 1.203 notas, 448 notas ajustadas conferidas antes e
+  depois das migrações) → 347 testes com golden → anexar num WSGI falso → atualizar
+  (banco, `.env` e golden com o mesmo hash depois).
+- Achados do ensaio, corrigidos: suíte não hermética; `meta.json` do golden fora da carga;
+  `anexar-wsgi.sh` saía em silêncio se o `curl` falhasse.
+
+### Incidentes
+- Um teste do bloco WSGI, na primeira versão, rodava com a pasta do projeto no `sys.path`
+  e subiu o sistema com o `.env` real: aplicou a migração 6 ao banco local (com backup
+  automático antes). A migração só cria as tabelas de alertas; nenhum dado mudou. O teste
+  agora roda isolado e prova de onde importou o pacote.
+- Ao renomear o pacote, a pasta `app/` que sobrou foi apagada sem inspeção. Com o
+  `git status` limpo antes, só havia arquivos ignorados — na prática, `__pycache__`.
+
+### Decisões
+1. Tarefa diária às 07:00 UTC (04:00 Brasília): o Controle de Impostos usa as mesmas
+   contas do Tiny às 06:00; juntas, disputariam a cota por minuto.
+2. A sincronização completa levou ~91 min no computador. O limite de tempo da tarefa no
+   plano será medido na primeira execução manual; se estourar, divide-se em duas.
+
+---
+
 ## Decisões do Neto sobre o restante do plano · 25/09/2026
 - **Fase 4.6 (orçado × realizado): fora do escopo.** Não há orçamento a comparar.
 - **Fase 4.7 (fluxo de caixa): fora do escopo por ora.** Registrado o custo: o sistema
   mostra competência (lucro), não caixa (quando o dinheiro falta). Vencimento, liquidação
   e saldo em aberto já são sincronizados, então ligar depois é barato.
-- **Fase 5: o caminho no PythonAnywhere será `/financeiro`** (`/fechamento`, `/demandas`,
-  `/adba` e `/impostos` já estão em uso).
+- **Fase 5: o caminho no PythonAnywhere será `/financeiro`** (os caminhos mais óbvios já
+  estão em uso por outros sistemas da conta).
 
 ---
 
-## Fase 4.5 — Alertas de anomalia · 25/09/2026 · aguardando validação
+## Fase 4.5 — Alertas de anomalia · 25/09/2026 · validada pelo Neto e mesclada (PR #13)
 
 ### O que foi feito
 - **Migração 6**: `parametros_alerta` (limites, editados pelo Admin, com auditoria) e

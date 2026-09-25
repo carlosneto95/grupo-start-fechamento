@@ -9,9 +9,9 @@ from decimal import Decimal as D
 
 import pytest
 
-from app import db, migracao_centavos
-from app.dinheiro import arredondar, como_decimal, para_centavos, para_reais, ratear
-from app.centros_de_custo import separar
+from financeiro import db, migracao_centavos
+from financeiro.dinheiro import arredondar, como_decimal, para_centavos, para_reais, ratear
+from financeiro.centros_de_custo import separar
 from tests.conftest import _conta, _nota, gravar
 
 # ---- conversões -------------------------------------------------------------

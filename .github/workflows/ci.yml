@@ -33,7 +33,7 @@ jobs:
         run: ruff check .
 
       - name: Ruff (formatação dos arquivos já migrados)
-        run: ruff format --check tests app/__init__.py app/db.py app/auditoria.py app/dinheiro.py app/migracao_centavos.py app/sincronizar_tudo.py app/extracao_job.py scripts/sincronizar.py scripts/sincronizar_receitas.py scripts/tarefa_diaria.py app/configuracao.py app/registro.py app/paineis.py app/web app/config/companies.py app.py scripts/relatorio_qualidade.py scripts/medir_desempenho.py scripts/diagnosticar_env.py app/escopo.py app/seguranca.py app/usuarios.py app/validacao.py scripts/criar_usuario.py scripts/capturar_telas.py app/pendencias.py app/fechamento.py app/trava_fechamento.py app/dre.py app/exportar.py app/alertas.py
+        run: ruff format --check tests deploy financeiro/__init__.py financeiro/db.py financeiro/auditoria.py financeiro/dinheiro.py financeiro/migracao_centavos.py financeiro/sincronizar_tudo.py financeiro/extracao_job.py scripts/sincronizar.py scripts/sincronizar_receitas.py scripts/tarefa_diaria.py financeiro/configuracao.py financeiro/registro.py financeiro/paineis.py financeiro/web financeiro/config/companies.py app.py scripts/relatorio_qualidade.py scripts/medir_desempenho.py scripts/diagnosticar_env.py financeiro/escopo.py financeiro/seguranca.py financeiro/usuarios.py financeiro/validacao.py scripts/criar_usuario.py scripts/capturar_telas.py financeiro/pendencias.py financeiro/fechamento.py financeiro/trava_fechamento.py financeiro/dre.py financeiro/exportar.py financeiro/alertas.py
 
       - name: Testes com dados sintéticos
         run: pytest -q -rs

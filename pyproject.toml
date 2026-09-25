@@ -7,7 +7,7 @@
 
 # O projeto não é distribuído como pacote: o build-system existe só para que
 # `pip install ".[dev]"` (usado no CI) instale as dependências fixadas abaixo.
-# py-modules/packages vazios impedem o setuptools de tentar empacotar app/,
+# py-modules/packages vazios impedem o setuptools de tentar empacotar financeiro/,
 # tests/ e scripts/ (a detecção automática erra com várias pastas na raiz).
 [build-system]
 requires = ["setuptools>=69"]

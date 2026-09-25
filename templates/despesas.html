@@ -30,7 +30,7 @@
     {% if mostrando_todas %}<input type="hidden" name="todas" value="1">{% endif %}
 
     {# Uma faixa só, e só quando há o que dizer: limpar filtros e o aviso do
-       limite de linhas (app/paineis.py:LINHAS_NA_TELA; o total soma todas). #}
+       limite de linhas (financeiro/paineis.py:LINHAS_NA_TELA; o total soma todas). #}
     {% if filtros_coluna or linhas_ocultas %}
     <div class="barra-ferramentas">
         {% if filtros_coluna %}

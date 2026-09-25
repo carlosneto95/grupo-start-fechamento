@@ -8,9 +8,9 @@ Regras do CLAUDE.md que estes testes prendem:
   - lista simples é cortada em LIMITE itens, com aviso de truncado.
 """
 
-from app import filtros_coluna
-from app.filtros_coluna import LIMITE, valores
-from app.visao import SEM_VALOR
+from financeiro import filtros_coluna
+from financeiro.filtros_coluna import LIMITE, valores
+from financeiro.visao import SEM_VALOR
 
 
 def _linhas(**colunas):

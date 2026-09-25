@@ -10,8 +10,8 @@ import sqlite3
 
 import pytest
 
-from app import fechamento
-from app.escopo import SISTEMA, Escopo
+from financeiro import fechamento
+from financeiro.escopo import SISTEMA, Escopo
 from tests.conftest import _conta, cliente_para, gravar
 
 
@@ -164,7 +164,7 @@ def test_mes_fechado_trava_os_ajustes(admin):
 
 def test_sincronizacao_nao_e_travada(admin, banco_exemplo):
     """Espelho do Tiny: a gravação da sincronização passa mesmo com o mês fechado."""
-    from app.repositorio_contas_pagar import upsert_contas
+    from financeiro.repositorio_contas_pagar import upsert_contas
 
     _fechar(admin)
     upsert_contas(SISTEMA, [{**_conta("ALFA", 1, "COMERCIO-Frete", 1234.0, "01/2026")}])

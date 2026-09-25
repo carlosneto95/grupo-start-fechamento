@@ -23,9 +23,9 @@ sys.path.insert(0, str(RAIZ))
 
 from werkzeug.security import generate_password_hash  # noqa: E402
 
-from app import db, usuarios, validacao  # noqa: E402
-from app.config.companies import load_companies  # noqa: E402
-from app.escopo import PERFIS, SISTEMA  # noqa: E402
+from financeiro import db, usuarios, validacao  # noqa: E402
+from financeiro.config.companies import load_companies  # noqa: E402
+from financeiro.escopo import PERFIS, SISTEMA  # noqa: E402
 
 
 def pedir_senha() -> str:
@@ -69,7 +69,7 @@ def main() -> int:
                 " bloqueado_ate = NULL, sessao_versao = sessao_versao + 1 WHERE id = ?",
                 (generate_password_hash(senha), existente["id"]),
             )
-            from app import auditoria
+            from financeiro import auditoria
 
             auditoria.registrar(
                 conn, "redefinir_senha", "usuario", str(existente["id"]), None, None, None

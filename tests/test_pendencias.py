@@ -10,8 +10,8 @@ from datetime import date
 import pytest
 from flask import url_for
 
-from app import pendencias
-from app.escopo import SISTEMA, Escopo
+from financeiro import pendencias
+from financeiro.escopo import SISTEMA, Escopo
 from tests.conftest import _conta, _nota, cliente_para, gravar
 
 

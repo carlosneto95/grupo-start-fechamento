@@ -71,9 +71,9 @@ def _subir_servidor(pasta: Path) -> tuple[str, object]:
     """Sobe o app numa porta livre, numa thread, sobre a cópia do banco."""
     from werkzeug.serving import make_server
 
-    from app import criar_app
-    from app.escopo import SISTEMA
-    from app import usuarios
+    from financeiro import criar_app
+    from financeiro.escopo import SISTEMA
+    from financeiro import usuarios
 
     app = criar_app(
         {

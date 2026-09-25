@@ -103,7 +103,7 @@ def test_conta_sem_competencia_aparece_como_vazio(cliente, banco_exemplo):
 def test_despesas_limita_linhas_desenhadas_mas_soma_todas(cliente, monkeypatch):
     """Fase 1 (decisão do Neto): a tela desenha no máximo LINHAS_NA_TELA
     linhas; o total considerado e a contagem continuam sobre todas."""
-    from app import paineis
+    from financeiro import paineis
 
     monkeypatch.setattr(paineis, "LINHAS_NA_TELA", 3)
     c = _contexto(cliente, "/despesas")

@@ -6,7 +6,7 @@ e o imposto calculado (10% da receita) cai junto, em silêncio.
 Valores sintéticos: 10.000,00 de bruto com 3% de ISS.
 """
 
-from app.receitas import valor_bruto_de_servico
+from financeiro.receitas import valor_bruto_de_servico
 
 
 def test_iss_retido_soma_o_iss_de_volta():

@@ -11,7 +11,7 @@ Os valores são sintéticos e redondos para a conta caber de cabeça. Cenário b
 
 import pytest
 
-from app.centros_de_custo import ADM_SEM_RECEITA, SERVICOS, VENDAS, separar
+from financeiro.centros_de_custo import ADM_SEM_RECEITA, SERVICOS, VENDAS, separar
 
 
 def _nota(categoria, valor):

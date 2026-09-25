@@ -30,15 +30,15 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app.db import init_db
-from app.reports.contas_pagar import (
+from financeiro.db import init_db
+from financeiro.reports.contas_pagar import (
     _extrair_centro_custo,
     _extrair_forma_pagamento,
     _separar_categoria,
     normalizar_forma_pagamento,
 )
-from app.escopo import SISTEMA
-from app.repositorio_contas_pagar import mapa_por_id, upsert_contas
+from financeiro.escopo import SISTEMA
+from financeiro.repositorio_contas_pagar import mapa_por_id, upsert_contas
 
 # A planilha usa rótulos de tela ("Paga"); a API usa códigos ("pago"). Uniformizamos
 # para o padrão da API, senão o filtro de situação da tela mostraria as duas versões.
@@ -156,7 +156,7 @@ def linha_da_planilha(registro: dict) -> dict:
 
 
 def todas_empresas() -> list[str]:
-    from app.config.companies import load_companies
+    from financeiro.config.companies import load_companies
     return [e.nome for e in load_companies()]
 
 

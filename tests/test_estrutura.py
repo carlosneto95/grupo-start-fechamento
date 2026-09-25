@@ -9,12 +9,12 @@ import logging
 
 import pytest
 
-from app import configuracao, registro
+from financeiro import configuracao, registro
 from tests.conftest import CHAVE_TESTE, cliente_para
 
 
 def test_sem_chave_o_app_nao_sobe(banco):
-    from app import criar_app
+    from financeiro import criar_app
 
     with pytest.raises(RuntimeError, match="GSF_SECRET_KEY"):
         criar_app({"SECRET_KEY": "curta", "CAMINHO_BANCO": str(banco)})
@@ -33,7 +33,7 @@ def test_configuracao_ignora_secret_key_do_ambiente(monkeypatch, tmp_path):
 def test_env_do_projeto_vence_o_ambiente(monkeypatch, tmp_path):
     (tmp_path / ".env").write_text(f"GSF_SECRET_KEY={'a' * 40}\nOUTRA=1\n", encoding="utf-8")
     monkeypatch.setenv("GSF_SECRET_KEY", "b" * 40)
-    monkeypatch.setattr(configuracao, "RAIZ", tmp_path)
+    monkeypatch.setattr(configuracao, "ARQUIVO_ENV", tmp_path / ".env")
     v = configuracao.variaveis()
     assert v["GSF_SECRET_KEY"] == "a" * 40
     assert "OUTRA" not in v  # só o prefixo do projeto entra
@@ -115,7 +115,7 @@ def test_log_mascara_segredo_e_documento(entrada, proibido):
 
 
 def test_filtro_do_log_mascara_traceback(tmp_path):
-    log = logging.getLogger("app.teste_mascara")
+    log = logging.getLogger("financeiro.teste_mascara")
     handler = logging.FileHandler(tmp_path / "t.log", encoding="utf-8")
     handler.addFilter(registro.FiltroSigilo())
     log.addHandler(handler)

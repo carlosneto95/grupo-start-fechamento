@@ -1,10 +1,10 @@
 """Ponto de entrada local: `python app.py` sobe o servidor em :5000.
 
-Toda a montagem está em `app.criar_app()` (app/__init__.py). No
+Toda a montagem está em `financeiro.criar_app()` (financeiro/__init__.py). No
 PythonAnywhere o WSGI chama a mesma fábrica.
 """
 
-from app import criar_app
+from financeiro import criar_app
 
 app = criar_app()
 

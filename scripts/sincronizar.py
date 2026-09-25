@@ -1,6 +1,6 @@
 """
 Sincroniza o banco com o Tiny pela linha de comando — o MESMO job da tela e
-da tarefa agendada (app/sincronizar_tudo.py): despesas e notas, com histórico
+da tarefa agendada (financeiro/sincronizar_tudo.py): despesas e notas, com histórico
 gravado em `sincronizacoes`.
 
 Uso:
@@ -27,10 +27,10 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app import sincronizar_tudo  # noqa: E402
-from app.config.companies import load_companies  # noqa: E402
-from app.db import init_db  # noqa: E402
-from app.sincronizacao import periodo_do_ano  # noqa: E402
+from financeiro import sincronizar_tudo  # noqa: E402
+from financeiro.config.companies import load_companies  # noqa: E402
+from financeiro.db import init_db  # noqa: E402
+from financeiro.sincronizacao import periodo_do_ano  # noqa: E402
 
 POR = {"emissao": ("emissao",), "vencimento": ("vencimento",), "ambos": ("emissao", "vencimento")}
 SO = {"contas": ("contas",), "notas": ("notas",), None: sincronizar_tudo.TIPOS}

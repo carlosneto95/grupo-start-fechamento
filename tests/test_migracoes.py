@@ -14,7 +14,7 @@ import sqlite3
 
 import pytest
 
-from app import db
+from financeiro import db
 from tests.conftest import _conta, _nota, gravar
 
 

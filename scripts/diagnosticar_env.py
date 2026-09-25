@@ -2,7 +2,7 @@
 Diagnóstico do .env — NÃO imprime nenhum valor, só confirma se o arquivo foi
 encontrado e quais variáveis GSF_* estão preenchidas.
 
-Lê pelo mesmo caminho do sistema (app/configuracao.variaveis): arquivo .env
+Lê pelo mesmo caminho do sistema (financeiro/configuracao.variaveis): arquivo .env
 do projeto, só nomes com prefixo GSF_, sem copiar nada para os.environ.
 
 Uso:
@@ -15,7 +15,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from app.configuracao import TAMANHO_MINIMO_CHAVE, variaveis  # noqa: E402
+from financeiro.configuracao import TAMANHO_MINIMO_CHAVE, variaveis  # noqa: E402
 
 CAMPOS = ["GSF_SECRET_KEY", "GSF_BANCO", "GSF_LOGS", "GSF_BACKUPS", "GSF_AMBIENTE"] + [
     f"GSF_EMPRESA{n}_{campo}" for n in (1, 2, 3) for campo in ("NOME", "TINY_API_TOKEN")

@@ -19,17 +19,17 @@ de build. Destino: PythonAnywhere.
 
 ```
 app.py                       ponto de entrada local (python app.py -> :5000)
-app/__init__.py              criar_app(): config, banco, log, rotas, erros
-app/configuracao.py          variáveis GSF_* lidas só do .env do projeto
-app/web/                     rotas finas, um blueprint por área
-app/paineis.py               o que cada tela mostra (regra fora das rotas)
-app/db.py                    conexão, migrações versionadas, backup
-app/migracoes/               000N_nome.sql — nunca editar migração aplicada
-app/dinheiro.py              centavos no banco, Decimal no cálculo, rateio exato
-app/centros_de_custo.py      resultado por categoria: imposto, Adm I, Adm II
-app/auditoria.py             trilha append-only de toda escrita manual
-app/sincronizar_tudo.py      job único de sincronização (tela, CLI, agendada)
-app/registro.py              log com rotação e máscara de token/CPF/CNPJ
+financeiro/__init__.py              criar_app(): config, banco, log, rotas, erros
+financeiro/configuracao.py          variáveis GSF_* lidas só do .env do projeto
+financeiro/web/                     rotas finas, um blueprint por área
+financeiro/paineis.py               o que cada tela mostra (regra fora das rotas)
+financeiro/db.py                    conexão, migrações versionadas, backup
+financeiro/migracoes/               000N_nome.sql — nunca editar migração aplicada
+financeiro/dinheiro.py              centavos no banco, Decimal no cálculo, rateio exato
+financeiro/centros_de_custo.py      resultado por categoria: imposto, Adm I, Adm II
+financeiro/auditoria.py             trilha append-only de toda escrita manual
+financeiro/sincronizar_tudo.py      job único de sincronização (tela, CLI, agendada)
+financeiro/registro.py              log com rotação e máscara de token/CPF/CNPJ
 scripts/                     sincronizar, tarefa_diaria, relatorio_qualidade...
 tests/                       pytest com dados sintéticos + golden master local
 ```
