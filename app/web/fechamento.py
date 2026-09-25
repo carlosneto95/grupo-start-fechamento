@@ -3,7 +3,7 @@ fechamento (todos os perfis, dentro do escopo), fechar e reabrir (só Admin)."""
 
 from flask import Blueprint, g, redirect, render_template, request, url_for
 
-from app import fechamento, paineis, validacao
+from app import exportar, fechamento, paineis, validacao
 from app.seguranca import admin_necessario
 
 bp = Blueprint("fechamento", __name__)
@@ -47,6 +47,23 @@ def diferencas():
     dados = fechamento.diferencas(g.escopo, competencia)
     if dados is None:  # competência aberta: não há o que comparar
         return redirect(url_for("fechamento.lista"))
+    tabela = paineis.diferencas_tabela(g.escopo, request.args)
+    if exportar.pedido(request.args):
+        # Resumo: o resultado no fechamento e agora, como no quadro da tela.
+        resumo = [
+            (f"{rotulo} — {quando}", dados[lado][campo], "moeda")
+            for lado, quando in (("no_fechamento", "no fechamento"), ("agora", "agora"))
+            for campo, rotulo in (("receita", "Receita"), ("resultado", "Resultado"))
+        ]
+        return exportar.enviar(
+            g.escopo,
+            f"diferencas_{competencia.replace('/', '-')}",
+            f"Diferenças pós-fechamento — {competencia}",
+            resumo,
+            exportar.COLUNAS_DIFERENCAS,
+            tabela["linhas"],
+            tabela["filtros_coluna"],
+        )
     return render_template(
         "fechamento_diferencas.html",
         secao="fechamento",
@@ -54,7 +71,7 @@ def diferencas():
         dados=dados,
         historico=fechamento.historico(competencia),
         erro=request.args.get("erro"),
-        **paineis.diferencas_tabela(g.escopo, request.args),
+        **tabela,
     )
 
 

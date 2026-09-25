@@ -79,7 +79,16 @@
         <div class="cabecalho-pagina">
             <h1>{% block cabecalho %}{% endblock %}</h1>
             {% block subtitulo %}{% endblock %}
-            <div class="cabecalho-acoes">{% block cabecalho_acoes %}{% endblock %}</div>
+            <div class="cabecalho-acoes">
+                {#- Tela com `{% set exportavel = true %}` ganha o botão Excel: a
+                    mesma URL (endpoint + filtros + ordenação) com formato=xlsx,
+                    então a planilha é sempre o recorte que está na tela. -#}
+                {%- if exportavel -%}
+                <a class="botao-exportar" title="Baixar esta tabela, com os filtros aplicados, em Excel"
+                   href="{{ url_for(request.endpoint, **dict(request.args.to_dict(flat=False), formato='xlsx')) }}">{{ ic.icone('excel') }}<span>Excel</span></a>
+                {%- endif -%}
+                {%- block cabecalho_acoes %}{% endblock -%}
+            </div>
         </div>
         {% block corpo %}{% endblock %}
     </main>

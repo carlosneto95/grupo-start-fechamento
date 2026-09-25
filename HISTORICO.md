@@ -9,7 +9,39 @@ fornecedor aqui**. Os números ficam em `relatorios/` e `tests/golden/esperado/`
 
 ---
 
-## Fase 4.3 — DRE gerencial por competência · 24/09/2026 · aguardando validação
+## Fase 4.4 — Exportação para Excel · 25/09/2026 · aguardando validação
+
+### O que foi feito
+- `?formato=xlsx` em toda listagem: Despesas, Vendas, Serviços, DRE, detalhe da DRE,
+  diferenças pós-fechamento e Usuários (esta só para Admin, como a tela). Botão "Excel" no
+  cabeçalho de cada uma, montado pela própria URL — a planilha é sempre o recorte da tela.
+- A rota monta o contexto pelo mesmo `paineis.<tela>()` da tela: mesmos filtros de
+  cabeçalho, mesma ordenação, mesmo escopo. Não há consulta paralela para exportar.
+- `app/exportar.py` (padrão do Impostos): aba Resumo (quando, por quem, filtros aplicados,
+  totais da tela) e aba Detalhe (cabeçalho congelado e autofiltro do Excel). Modo
+  write_only.
+- Tipos: valor como número, data do Tiny como data, competência como texto.
+- **Injeção de fórmula**: texto iniciado por = + - @ (ou tabulação/retorno) ganha o
+  prefixo ' e é gravado como texto. Única alteração de conteúdo, e só na célula exportada.
+- **Auditoria**: toda exportação registra quem, qual tela, quantas linhas e os filtros.
+- Testes: 323 (20 novos). Golden idêntico. Linhas visíveis por tela: iguais às da 4.3.
+
+### Decisões
+1. Despesas exporta **todas** as linhas do recorte, não só as 2 mil desenhadas na tela.
+2. Dashboard e Análise de Receitas não exportam: são painéis de gráfico e grade, não
+   listagens; a DRE cobre o demonstrativo.
+3. Sem filtro, Despesas exporta ~17,5 mil linhas em ~4,4 s (1 MB). Filtrado, abaixo de
+   0,5 s.
+
+### Incidente
+- Durante a conferência com o banco real, criei por engano um usuário de teste
+  (`exp_tmp`) no `data/app.db`. Removido no mesmo minuto, com backup antes e registro na
+  auditoria. As linhas de auditoria que ele gerou ficam (tabela append-only).
+  Conferências com dado real passam a ser feitas numa cópia do banco.
+
+---
+
+## Fase 4.3 — DRE gerencial por competência · 24/09/2026 · validada pelo Neto e mesclada (PR #11)
 
 ### O que foi feito
 - **Tela DRE** (menu, todos os perfis, dentro do escopo): colunas mensais do ano, até o

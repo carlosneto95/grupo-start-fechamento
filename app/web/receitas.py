@@ -4,7 +4,7 @@ import sqlite3
 
 from flask import Blueprint, g, jsonify, redirect, render_template, request, url_for
 
-from app import paineis, validacao
+from app import exportar, paineis, validacao
 from app.receitas import definir_ajuste, definir_marcacao
 from app.seguranca import escrita_necessaria
 from app.trava_fechamento import CompetenciaFechada
@@ -19,6 +19,21 @@ def _tela(tabela: str, rota: str, titulo: str):
     muda é a chave de tabela dos funis. `rota` é o endpoint que os links de
     ordenação e o "limpar filtros" da tela usam."""
     contexto = paineis.receitas(g.escopo, request.args, tabela)
+    if exportar.pedido(request.args):
+        return exportar.enviar(
+            g.escopo,
+            tabela,
+            titulo,
+            [
+                ("Receita considerada", contexto["total_receita"], "moeda"),
+                ("Notas consideradas", contexto["quantidade"], "int"),
+                ("Desconsiderado", contexto["total_excluido"], "moeda"),
+                ("Notas desconsideradas", contexto["excluidas"], "int"),
+            ],
+            exportar.COLUNAS_NOTAS,
+            contexto["notas"],
+            contexto["filtros_coluna"],
+        )
     return render_template("receitas.html", rota=rota, titulo=titulo, secao=tabela, **contexto)
 
 

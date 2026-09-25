@@ -1431,3 +1431,13 @@ tr.linha-total td { font-weight: 600; border-top: 1px solid var(--borda-forte); 
    classes genéricas de cor: sem isto, negativo e variação ficavam cinza. */
 .tabela-dre tr > td.valor-negativo { color: var(--despesa); }
 .tabela-dre tr > td.valor-positivo { color: var(--receita); }
+
+/* ---------- Fase 4.4: exportação para Excel ---------- */
+.botao-exportar {
+    display: inline-flex; align-items: center; gap: 5px; align-self: center;
+    padding: 4px 10px; border: 1px solid var(--borda-forte); border-radius: 6px;
+    font-size: 11.5px; font-weight: 600; color: var(--tinta); text-decoration: none;
+    background: var(--superficie);
+}
+.botao-exportar:hover { border-color: var(--acento); color: var(--acento); }
+.botao-exportar .ico { width: 14px; height: 14px; }
